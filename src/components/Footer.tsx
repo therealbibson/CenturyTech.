@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaFacebook, FaInstagram, FaTwitter, FaWhatsapp } from 'react-icons/fa';
+import { FaFacebook, FaInstagram, FaTwitter, FaWhatsapp, FaPhone, FaEnvelope, FaMapMarkerAlt, FaRegCopyright } from 'react-icons/fa';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -64,9 +64,18 @@ export default function Footer() {
           >
             <h4 className="text-lg font-semibold mb-4">Contact</h4>
             <ul className="space-y-2 text-gray-400">
-              <li>📞 +234 801 234 5678</li>
-              <li>✉️ info@centurytech.com</li>
-              <li>📍 Lagos, Nigeria</li>
+              <li className="flex items-center gap-2">
+                <FaPhone className="text-[#2563EB]" />
+                <span>+234 801 234 5678</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <FaEnvelope className="text-[#2563EB]" />
+                <span>info@centurytech.com</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <FaMapMarkerAlt className="text-[#2563EB]" />
+                <span>Lagos, Nigeria</span>
+              </li>
             </ul>
           </motion.div>
 
@@ -112,10 +121,14 @@ export default function Footer() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-800 pt-8">
-          <p className="text-center text-gray-400">
-            © {currentYear} CenturyTech. All Rights Reserved.
+        <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-gray-400">
+          <p className="text-center md:text-left flex items-center gap-1">
+            <FaRegCopyright aria-hidden="true" />
+            <span>{currentYear} CenturyTech. All Rights Reserved.</span>
           </p>
+          <Link to="/admin" className="text-gray-500 hover:text-gray-300 transition text-sm">
+            Admin Area
+          </Link>
         </div>
       </div>
     </footer>

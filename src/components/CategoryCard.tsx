@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import DynamicFaIcon from './DynamicFaIcon';
 
 interface CategoryCardProps {
   name: string;
@@ -14,14 +15,14 @@ export default function CategoryCard({ name, icon, index = 0 }: CategoryCardProp
       viewport={{ once: true }}
       transition={{ delay: index * 0.1 }}
       whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)' }}
-      className="bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200"
+      className="bg-white rounded-2xl p-6 cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200"
     >
       <div className="text-center">
         <motion.div
           whileHover={{ scale: 1.2, rotate: 10 }}
-          className="text-5xl mb-4 inline-block"
+          className="mb-4 inline-block"
         >
-          {icon}
+          <DynamicFaIcon name={icon} size={48} className="text-[#2563EB]" />
         </motion.div>
         <h3 className="text-xl font-bold text-[#0F172A]">{name}</h3>
         <p className="text-sm text-gray-600 mt-2">Explore Collection</p>

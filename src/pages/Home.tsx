@@ -1,12 +1,43 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { FaCheckCircle, FaTruck, FaShieldAlt, FaHeadset } from 'react-icons/fa';
+import { FaCheckCircle, FaTruck, FaShieldAlt, FaHeadset, FaQuoteLeft, FaStar, FaUserCircle } from 'react-icons/fa';
 import ProductCard from '../components/ProductCard';
 import CategoryCard from '../components/CategoryCard';
-import { products, categories, brands, testimonials } from '../data/products';
+import { type Product } from '../data/products';
+import { api, type Category, type Brand, type Testimonial } from '../services/api';
+import DynamicFaIcon from '../components/DynamicFaIcon';
 
 export default function Home() {
-  const featuredProducts = products.slice(0, 6);
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
+  const [brandsList, setBrandsList] = useState<Brand[]>([]);
+  const [testimonialsList, setTestimonialsList] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [fetchedProducts, fetchedCategories, fetchedBrands, fetchedTestimonials] = await Promise.all([
+          api.getProducts(),
+          api.getCategories(),
+          api.getBrands(),
+          api.getTestimonials()
+        ]);
+        setProductsList(fetchedProducts);
+        setCategoriesList(fetchedCategories);
+        setBrandsList(fetchedBrands);
+        setTestimonialsList(fetchedTestimonials);
+      } catch (err) {
+        console.error('Error loading home data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  const featuredProducts = productsList.slice(0, 6);
 
   const features = [
     {
@@ -31,13 +62,24 @@ export default function Home() {
     }
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 pt-16">
+        <div className="w-16 h-16 border-4 border-[#2563EB]/20 border-t-[#2563EB] rounded-full animate-spin mb-4"></div>
+        <p className="text-xl font-bold text-[#2563EB] animate-pulse">
+          Loading Home...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="pt-16">
       {/* Hero Section */}
-      <section className="relative min-h-screen bg-gradient-to-br from-white via-blue-50 to-white flex items-center overflow-hidden">
-        {/* Background Gradient Elements */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#2563EB]/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#F59E0B]/10 rounded-full blur-3xl"></div>
+      <section className="relative min-h-screen bg-slate-50 flex items-center overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-[#2563EB]/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#F59E0B]/5 rounded-full blur-3xl"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid md:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
@@ -53,7 +95,7 @@ export default function Home() {
               className="text-5xl md:text-6xl font-bold text-[#0F172A] mb-6 leading-tight"
             >
               Premium Laptops & Smartphones at{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#2563EB] to-[#F59E0B]">
+              <span className="text-[#2563EB]">
                 Affordable Prices
               </span>
             </motion.h1>
@@ -138,9 +180,9 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {categories.map((cat, idx) => (
+            {categoriesList.map((cat, idx) => (
               <CategoryCard
-                key={cat.id}
+                key={cat.id || cat._id}
                 name={cat.name}
                 icon={cat.icon}
                 index={idx}
@@ -169,7 +211,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredProducts.map((product, idx) => (
-              <ProductCard key={product.id} product={product} index={idx} />
+              <ProductCard key={product._id || product.id} product={product} index={idx} />
             ))}
           </div>
 
@@ -214,7 +256,7 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl border border-blue-100 hover:border-[#2563EB] transition-all"
+                className="bg-blue-50 p-8 rounded-2xl border border-blue-100 hover:border-[#2563EB] transition-all"
               >
                 <div className="mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-bold text-[#0F172A] mb-3">
@@ -242,9 +284,9 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
-            {brands.map((brand, idx) => (
+            {brandsList.map((brand, idx) => (
               <motion.div
-                key={idx}
+                key={brand._id || idx}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -252,7 +294,9 @@ export default function Home() {
                 whileHover={{ scale: 1.1 }}
                 className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all flex flex-col items-center justify-center h-28"
               >
-                <span className="text-3xl mb-2">{brand.logo}</span>
+                <div className="mb-2">
+                  <DynamicFaIcon name={brand.logo} size={36} className="text-[#2563EB]" />
+                </div>
                 <p className="font-semibold text-[#0F172A] text-center text-sm">
                   {brand.name}
                 </p>
@@ -277,22 +321,26 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {testimonials.map((testimonial, idx) => (
+            {testimonialsList.map((testimonial, idx) => (
               <motion.div
-                key={idx}
+                key={testimonial._id || idx}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
-                className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl border border-blue-100"
+                className="bg-blue-50 p-8 rounded-2xl border border-blue-100"
               >
-                <div className="flex text-[#F59E0B] mb-4">
+                <div className="flex text-[#F59E0B] gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <span key={i}>⭐</span>
+                    <FaStar key={i} />
                   ))}
                 </div>
-                <p className="text-gray-600 mb-4 italic">"{testimonial.text}"</p>
-                <p className="font-bold text-[#0F172A]">— {testimonial.name}</p>
+                <FaQuoteLeft className="text-[#2563EB] mb-3" aria-hidden="true" />
+                <p className="text-gray-600 mb-4 italic">{testimonial.text}</p>
+                <p className="font-bold text-[#0F172A] flex items-center gap-2">
+                  <FaUserCircle className="text-[#2563EB]" aria-hidden="true" />
+                  <span>{testimonial.name}</span>
+                </p>
               </motion.div>
             ))}
           </div>
@@ -300,7 +348,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-[#2563EB] to-blue-800 relative overflow-hidden">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#2563EB] relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
 
         <div className="max-w-4xl mx-auto relative z-10">

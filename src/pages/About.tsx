@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FaBullseye, FaLightbulb, FaHeart, FaStar } from 'react-icons/fa';
+import { FaBullseye, FaLightbulb, FaHeart, FaStar, FaCheckCircle } from 'react-icons/fa';
 
 export default function About() {
   const values = [
@@ -83,7 +83,7 @@ export default function About() {
               initial={{ opacity: 0, x: -50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="bg-linear-to-br from-blue-50 to-white p-8 rounded-2xl border-2 border-[#2563EB]"
+              className="bg-blue-50 p-8 rounded-2xl border-2 border-[#2563EB]"
             >
               <div className="flex items-center gap-4 mb-4">
                 <FaBullseye className="text-4xl text-[#2563EB]" />
@@ -101,7 +101,7 @@ export default function About() {
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="bg-linear-to-br from-amber-50 to-white p-8 rounded-2xl border-2 border-[#F59E0B]"
+              className="bg-amber-50 p-8 rounded-2xl border-2 border-[#F59E0B]"
             >
               <div className="flex items-center gap-4 mb-4">
                 <FaLightbulb className="text-4xl text-[#F59E0B]" />
@@ -137,7 +137,7 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, idx) => (
               <motion.div
-                key={idx}
+                key={value.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -197,16 +197,14 @@ export default function About() {
               }
             ].map((item, idx) => (
               <motion.div
-                key={idx}
+                key={item.title}
                 initial={{ opacity: 0, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.05 }}
-                className="flex gap-4 p-6 bg-linear-to-r from-blue-50 to-white rounded-xl border border-blue-100"
+                className="flex gap-4 p-6 bg-blue-50 rounded-xl border border-blue-100"
               >
-                <div className="shrink-0 w-6 h-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold mt-1">
-                  ✓
-                </div>
+                <FaCheckCircle className="shrink-0 text-[#2563EB] mt-1" size={24} />
                 <div>
                   <h3 className="text-lg font-bold text-[#0F172A] mb-1">
                     {item.title}

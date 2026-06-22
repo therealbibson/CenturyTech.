@@ -1,6 +1,9 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { Product } from '../data/products';
-import { FaStar } from 'react-icons/fa';
+import { FaCartPlus, FaStar } from 'react-icons/fa';
+import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
   product: Product;
@@ -8,6 +11,16 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, index = 0 }: ProductCardProps) {
+  const { addToCart, getItemQuantity } = useCart();
+  const [added, setAdded] = useState(false);
+  const cartQuantity = getItemQuantity(product.id);
+
+  const handleAddToCart = () => {
+    addToCart(product);
+    setAdded(true);
+    window.setTimeout(() => setAdded(false), 1400);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -18,7 +31,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
       className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300"
     >
       {/* Image Container */}
-      <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+      <div className="relative h-64 bg-gray-100 overflow-hidden">
         <img
           src={product.image}
           alt={product.name}
@@ -29,20 +42,23 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           whileHover={{ opacity: 1 }}
           className="absolute inset-0 bg-black/20 flex items-center justify-center"
         >
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            className="bg-[#2563EB] text-white px-6 py-2 rounded-full font-medium"
-          >
-            View Details
-          </motion.button>
+          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+            <Link
+              to={`/products/${product.id}`}
+              className="bg-[#2563EB] text-white px-6 py-2 rounded-full font-medium"
+            >
+              View Details
+            </Link>
+          </motion.div>
         </motion.div>
       </div>
 
       {/* Content */}
       <div className="p-4">
-        <h3 className="text-lg font-bold text-[#0F172A] mb-1">{product.name}</h3>
-        <p className="text-sm text-gray-600 mb-3">{product.description}</p>
+        <Link to={`/products/${product.id}`} className="block text-lg font-bold text-[#0F172A] mb-1 hover:text-[#2563EB] transition-colors">
+          {product.name}
+        </Link>
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
 
         {/* Rating */}
         {product.rating && (
@@ -61,18 +77,26 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
         )}
 
         {/* Price and CTA */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center gap-3">
           <span className="text-2xl font-bold text-[#2563EB]">
-            ₦{product.price.toLocaleString()}
+            NGN {product.price.toLocaleString()}
           </span>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="bg-[#F59E0B] text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors"
+            type="button"
+            onClick={handleAddToCart}
+            className="inline-flex items-center gap-2 bg-[#F59E0B] text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors"
           >
-            Add
+            <FaCartPlus /> {added ? 'Added' : 'Add'}
           </motion.button>
         </div>
+
+        {cartQuantity > 0 && (
+          <p className="text-xs font-semibold text-gray-500 mt-3">
+            {cartQuantity} in cart
+          </p>
+        )}
       </div>
     </motion.div>
   );

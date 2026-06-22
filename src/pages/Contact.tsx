@@ -86,14 +86,14 @@ export default function Contact() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {contactInfo.map((info, idx) => (
               <motion.a
-                key={idx}
+                key={info.title}
                 href={info.link}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
                 whileHover={{ scale: 1.05 }}
-                className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border border-blue-100"
+                className="bg-blue-50 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-all border border-blue-100"
               >
                 <div className="flex justify-center mb-4">{info.icon}</div>
                 <h3 className="text-lg font-bold text-[#0F172A] text-center mb-2">
@@ -193,7 +193,7 @@ export default function Contact() {
                 type="submit"
                 className="w-full bg-[#2563EB] text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors"
               >
-                {submitted ? '✓ Message Sent!' : 'Send Message'}
+                {submitted ? 'Message Sent!' : 'Send Message'}
               </motion.button>
 
               {submitted && (
@@ -229,7 +229,7 @@ export default function Contact() {
             </div>
 
             {/* Business Hours */}
-            <div className="bg-gradient-to-br from-blue-50 to-white p-8 rounded-2xl border border-blue-100">
+            <div className="bg-blue-50 p-8 rounded-2xl border border-blue-100">
               <h3 className="text-2xl font-bold text-[#0F172A] mb-4">
                 Business Hours
               </h3>
@@ -288,7 +288,7 @@ export default function Contact() {
               }
             ].map((faq, idx) => (
               <motion.div
-                key={idx}
+                key={faq.q}
                 initial={{ opacity: 0, y: 10 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
