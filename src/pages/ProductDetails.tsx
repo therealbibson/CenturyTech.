@@ -94,7 +94,9 @@ export default function ProductDetails() {
             animate={{ opacity: 1, x: 0 }}
             className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100"
           >
-            <p className="text-sm font-bold uppercase tracking-wide text-[#2563EB] mb-3">{product.category}</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-[#2563EB] mb-3">
+              {[product.brand, product.category].filter(Boolean).join(' / ')}
+            </p>
             <h1 className="text-4xl font-bold text-[#0F172A] mb-4">{product.name}</h1>
 
             {product.rating && (
@@ -164,3 +166,4 @@ export default function ProductDetails() {
     </div>
   );
 }
+

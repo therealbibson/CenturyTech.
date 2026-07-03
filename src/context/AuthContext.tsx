@@ -21,37 +21,77 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function decodeToken(token: string | null): { id?: string; username?: string; email?: string; role?: string } | null {
+  if (!token) return null;
+
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized));
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+function buildUserFromToken(token: string | null): User | null {
+  const decoded = decodeToken(token);
+  if (!decoded) return null;
+
+  return {
+    username: decoded.username || '',
+    email: decoded.email || '',
+    role: decoded.role || 'user',
+    _id: decoded.id
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if token and user exist in local storage on initialization
     const storedToken = localStorage.getItem('ct_token');
     const storedUser = localStorage.getItem('ct_user');
 
-    if (storedToken && storedUser) {
+    if (storedToken) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(buildUserFromToken(storedToken));
+        }
+      } else {
+        setUser(buildUserFromToken(storedToken));
+      }
     }
+
     setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
     const data = await api.login(email, password);
+    const resolvedUser = data.user || buildUserFromToken(data.token);
+
     setToken(data.token);
-    setUser(data.user);
+    setUser(resolvedUser);
     localStorage.setItem('ct_token', data.token);
-    localStorage.setItem('ct_user', JSON.stringify(data.user));
+    localStorage.setItem('ct_user', JSON.stringify(resolvedUser));
   };
 
   const signup = async (username: string, email: string, password: string) => {
     const data = await api.signup(username, email, password);
+    const resolvedUser = data.user || buildUserFromToken(data.token);
+
     setToken(data.token);
-    setUser(data.user);
+    setUser(resolvedUser);
     localStorage.setItem('ct_token', data.token);
-    localStorage.setItem('ct_user', JSON.stringify(data.user));
+    localStorage.setItem('ct_user', JSON.stringify(resolvedUser));
   };
 
   const logout = () => {

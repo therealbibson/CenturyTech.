@@ -18,6 +18,7 @@ export interface Testimonial {
   name: string;
   text: string;
   rating: number;
+  approved?: boolean;
 }
 
 export interface OrderItem {
@@ -57,9 +58,9 @@ export interface OrderInput {
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
 
-export type ProductInput = Omit<Product, '_id' | 'id'>;
-export type CategoryInput = Omit<Category, '_id' | 'id'> & { id?: number };
-export type BrandInput = Omit<Brand, '_id'>;
+export type ProductInput = Omit<Product, '_id' | 'id'> & { brand?: string; image?: string | File };
+export type CategoryInput = Omit<Category, '_id' | 'id'> & { id?: number; icon?: string | File };
+export type BrandInput = Omit<Brand, '_id'> & { logo?: string | File };
 export type TestimonialInput = Omit<Testimonial, '_id'>;
 
 async function parseError(response: Response, fallback: string) {
@@ -83,10 +84,13 @@ function adminHeaders() {
 }
 
 export const api = {
-  async getProducts(category?: string, search?: string): Promise<Product[]> {
+  async getProducts(category?: string, search?: string, brand?: string): Promise<Product[]> {
     const url = new URL(`${API_BASE_URL}/products`);
     if (category && category !== 'all') {
       url.searchParams.append('category', category);
+    }
+    if (brand && brand !== 'all') {
+      url.searchParams.append('brand', brand);
     }
     if (search) {
       url.searchParams.append('search', search);
@@ -132,10 +136,31 @@ export const api = {
   },
 
   async createProduct(productData: ProductInput): Promise<Product> {
+    const formData = new FormData();
+    formData.append('name', productData.name);
+    formData.append('category', productData.category);
+    formData.append('price', String(productData.price));
+    formData.append('description', productData.description);
+    formData.append('rating', String(productData.rating || 0));
+    if (productData.brand) {
+      formData.append('brand', productData.brand);
+    }
+    if (productData.image instanceof File) {
+      formData.append('image', productData.image);
+    } else if (productData.image) {
+      formData.append('image', productData.image);
+    }
+
+    const token = localStorage.getItem('ct_token') || '';
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify(productData)
+      headers,
+      body: formData
     });
     if (!response.ok) {
       throw new Error(await parseError(response, `Failed to create product: ${response.statusText}`));
@@ -144,10 +169,27 @@ export const api = {
   },
 
   async createCategory(categoryData: CategoryInput): Promise<Category> {
+    const formData = new FormData();
+    formData.append('name', categoryData.name);
+    if (categoryData.icon instanceof File) {
+      formData.append('icon', categoryData.icon);
+    } else if (categoryData.icon) {
+      formData.append('icon', categoryData.icon);
+    }
+    if (categoryData.id) {
+      formData.append('id', String(categoryData.id));
+    }
+
+    const token = localStorage.getItem('ct_token') || '';
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/categories`, {
       method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify(categoryData)
+      headers,
+      body: formData
     });
     if (!response.ok) {
       throw new Error(await parseError(response, `Failed to create category: ${response.statusText}`));
@@ -155,11 +197,67 @@ export const api = {
     return response.json();
   },
 
+  async updateCategory(id: string, categoryData: Partial<CategoryInput>): Promise<Category> {
+    const formData = new FormData();
+    if (categoryData.name != null) {
+      formData.append('name', categoryData.name);
+    }
+    if (categoryData.icon instanceof File) {
+      formData.append('icon', categoryData.icon);
+    } else if (categoryData.icon) {
+      formData.append('icon', categoryData.icon);
+    }
+    if (categoryData.id != null) {
+      formData.append('id', String(categoryData.id));
+    }
+
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('ct_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+      method: 'PUT',
+      headers,
+      body: formData
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to update category: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
+  async deleteCategory(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+      method: 'DELETE',
+      headers: adminHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to delete category: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
   async createBrand(brandData: BrandInput): Promise<Brand> {
+    const formData = new FormData();
+    formData.append('name', brandData.name);
+    if (brandData.logo instanceof File) {
+      formData.append('logo', brandData.logo);
+    } else if (brandData.logo) {
+      formData.append('logo', brandData.logo);
+    }
+
+    const token = localStorage.getItem('ct_token') || '';
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/brands`, {
       method: 'POST',
-      headers: adminHeaders(),
-      body: JSON.stringify(brandData)
+      headers,
+      body: formData
     });
     if (!response.ok) {
       throw new Error(await parseError(response, `Failed to create brand: ${response.statusText}`));
@@ -167,14 +265,88 @@ export const api = {
     return response.json();
   },
 
+  async updateBrand(id: string, brandData: Partial<BrandInput>): Promise<Brand> {
+    const formData = new FormData();
+    if (brandData.name != null) {
+      formData.append('name', brandData.name);
+    }
+    if (brandData.logo instanceof File) {
+      formData.append('logo', brandData.logo);
+    } else if (brandData.logo) {
+      formData.append('logo', brandData.logo);
+    }
+
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('ct_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/brands/${id}`, {
+      method: 'PUT',
+      headers,
+      body: formData
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to update brand: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
+  async deleteBrand(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/brands/${id}`, {
+      method: 'DELETE',
+      headers: adminHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to delete brand: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
   async createTestimonial(testimonialData: TestimonialInput): Promise<Testimonial> {
     const response = await fetch(`${API_BASE_URL}/testimonials`, {
       method: 'POST',
-      headers: adminHeaders(),
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(testimonialData)
     });
     if (!response.ok) {
       throw new Error(await parseError(response, `Failed to create testimonial: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
+  async getTestimonialsAdmin(): Promise<Testimonial[]> {
+    const response = await fetch(`${API_BASE_URL}/testimonials/admin`, {
+      headers: adminHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to fetch admin testimonials: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
+  async approveTestimonial(id: string, approved: boolean): Promise<Testimonial> {
+    const response = await fetch(`${API_BASE_URL}/testimonials/${id}`, {
+      method: 'PUT',
+      headers: adminHeaders(),
+      body: JSON.stringify({ approved })
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to update testimonial: ${response.statusText}`));
+    }
+    return response.json();
+  },
+
+  async deleteTestimonial(id: string): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/testimonials/${id}`, {
+      method: 'DELETE',
+      headers: adminHeaders()
+    });
+    if (!response.ok) {
+      throw new Error(await parseError(response, `Failed to delete testimonial: ${response.statusText}`));
     }
     return response.json();
   },
@@ -254,10 +426,29 @@ export const api = {
   },
 
   async updateProduct(id: number, productData: Partial<ProductInput>): Promise<Product> {
+    const formData = new FormData();
+    if (productData.name != null) formData.append('name', productData.name);
+    if (productData.category != null) formData.append('category', productData.category);
+    if (productData.brand != null) formData.append('brand', productData.brand);
+    if (productData.price != null) formData.append('price', String(productData.price));
+    if (productData.description != null) formData.append('description', productData.description);
+    if (productData.rating != null) formData.append('rating', String(productData.rating));
+    if (productData.image instanceof File) {
+      formData.append('image', productData.image);
+    } else if (productData.image != null) {
+      formData.append('image', productData.image);
+    }
+
+    const headers: Record<string, string> = {};
+    const token = localStorage.getItem('ct_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_BASE_URL}/products/${id}`, {
       method: 'PUT',
-      headers: adminHeaders(),
-      body: JSON.stringify(productData)
+      headers,
+      body: formData
     });
     if (!response.ok) {
       throw new Error(await parseError(response, `Failed to update product: ${response.statusText}`));
@@ -293,3 +484,4 @@ export const api = {
     return response.json();
   }
 };
+

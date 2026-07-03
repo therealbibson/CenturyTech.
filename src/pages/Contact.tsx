@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaWhatsapp } from 'react-icons/fa';
+import { api } from '../services/api';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -11,6 +12,43 @@ export default function Contact() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [testimonialStatus, setTestimonialStatus] = useState<'' | 'success' | 'error'>('');
+  const [testimonialMessage, setTestimonialMessage] = useState('');
+  const [testimonialForm, setTestimonialForm] = useState({
+    name: '',
+    text: '',
+    rating: '5'
+  });
+
+  const handleTestimonialChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setTestimonialForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmitTestimonial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTestimonialStatus('');
+    setTestimonialMessage('');
+
+    try {
+      await api.createTestimonial({
+        name: testimonialForm.name,
+        text: testimonialForm.text,
+        rating: Number(testimonialForm.rating)
+      });
+      setTestimonialStatus('success');
+      setTestimonialMessage('Thank you for your feedback! It will appear once approved.');
+      setTestimonialForm({ name: '', text: '', rating: '5' });
+    } catch (err) {
+      setTestimonialStatus('error');
+      setTestimonialMessage(err instanceof Error ? err.message : 'Failed to submit testimonial.');
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -206,6 +244,64 @@ export default function Contact() {
                 </motion.div>
               )}
             </form>
+
+            <div className="mt-12 rounded-3xl border border-gray-200 bg-white p-8 shadow-lg">
+              <h3 className="text-2xl font-bold text-[#0F172A] mb-4">Share a Review</h3>
+              <p className="text-gray-600 mb-6">
+                Send us your testimonial and we will review it for publishing on the homepage.
+              </p>
+              <form onSubmit={handleSubmitTestimonial} className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Your Name</label>
+                  <input
+                    name="name"
+                    value={testimonialForm.name}
+                    onChange={handleTestimonialChange}
+                    required
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#2563EB] outline-none text-lg"
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Your Review</label>
+                  <textarea
+                    name="text"
+                    value={testimonialForm.text}
+                    onChange={handleTestimonialChange}
+                    required
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#2563EB] outline-none text-lg resize-none"
+                    placeholder="Tell us what you liked"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Rating</label>
+                  <select
+                    name="rating"
+                    value={testimonialForm.rating}
+                    onChange={handleTestimonialChange}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#2563EB] outline-none text-lg"
+                  >
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-[#2563EB] text-white px-8 py-3 rounded-xl font-bold text-lg hover:bg-blue-800 transition-colors"
+                >
+                  Submit Review
+                </button>
+                {testimonialStatus && (
+                  <div className={`text-center font-semibold ${testimonialStatus === 'success' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {testimonialMessage}
+                  </div>
+                )}
+              </form>
+            </div>
           </motion.div>
 
           {/* Map & Info */}

@@ -13,7 +13,8 @@ import {
   FaTimes,
   FaSpinner,
   FaStar,
-  FaRegStar
+  FaRegStar,
+  FaEdit
 } from 'react-icons/fa';
 import { api, type Brand, type Category, type Testimonial } from '../services/api';
 import { type Product } from '../data/products';
@@ -25,6 +26,7 @@ import { useAuth } from '../context/AuthContext';
 const initialProduct = {
   name: '',
   category: '',
+  brand: '',
   price: '',
   image: '',
   description: '',
@@ -33,12 +35,12 @@ const initialProduct = {
 
 const initialCategory = {
   name: '',
-  icon: 'FaLaptop'
+  icon: ''
 };
 
 const initialBrand = {
   name: '',
-  logo: 'FaApple'
+  logo: ''
 };
 
 const initialTestimonial = {
@@ -63,9 +65,20 @@ export default function Admin() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ type: string; id: any } | null>(null);
-  
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
+
+  // Image preview states
+  const [productImagePreview, setProductImagePreview] = useState<string>('');
+  const [brandLogoPreview, setBrandLogoPreview] = useState<string>('');
+  const [categoryIconPreview, setCategoryIconPreview] = useState<string>('');
+
   // Search query for lists
   const [productSearch, setProductSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalKind, setModalKind] = useState<'product' | 'category' | 'brand' | 'testimonial'>('product');
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
 
   // Suggestions for React Icons
   const categoryIcons = [
@@ -111,18 +124,21 @@ export default function Admin() {
         api.getProducts(),
         api.getCategories(),
         api.getBrands(),
-        api.getTestimonials()
+        api.getTestimonialsAdmin()
       ]);
       setProducts(fetchedProducts);
       setCategories(fetchedCategories);
       setBrands(fetchedBrands);
       setTestimonials(fetchedTestimonials);
       
-      // Default the category in productForm to the first fetched category
+      // Default the category and brand in productForm to the first fetched items
       if (fetchedCategories.length > 0) {
         setProductForm(prev => ({ ...prev, category: fetchedCategories[0].name }));
       } else {
         setProductForm(prev => ({ ...prev, category: 'Laptops' }));
+      }
+      if (fetchedBrands.length > 0) {
+        setProductForm(prev => ({ ...prev, brand: fetchedBrands[0].name }));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data.');
@@ -133,7 +149,7 @@ export default function Admin() {
 
 
 
-  const handleCreateProduct = async (event: React.FormEvent) => {
+  const handleSaveProduct = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving('product');
     setError('');
@@ -141,26 +157,106 @@ export default function Admin() {
 
     try {
       const defaultImage = 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=300&fit=crop';
-      const product = await api.createProduct({
+      const payload = {
         name: productForm.name,
         category: productForm.category || 'Laptops',
+        brand: productForm.brand || '',
         price: Number(productForm.price),
         image: productForm.image || defaultImage,
         description: productForm.description,
         rating: Number(productForm.rating)
-      });
-      
-      setProducts((current) => [...current, product]);
-      setProductForm({
-        ...initialProduct,
-        category: categories.length > 0 ? categories[0].name : 'Laptops'
-      });
-      setMessage(`Product "${product.name}" added successfully.`);
+      };
+
+      if (editingProductId) {
+        const updatedProduct = await api.updateProduct(editingProductId, payload);
+        setProducts((current) => current.map((p) => (p.id === editingProductId ? updatedProduct : p)));
+        setEditingProductId(null);
+        setMessage(`Product "${updatedProduct.name}" updated successfully.`);
+      } else {
+        const product = await api.createProduct(payload);
+        setProducts((current) => [...current, product]);
+        setMessage(`Product "${product.name}" added successfully.`);
+      }
+
+      setIsModalOpen(false);
+      resetAdminForms();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add product.');
+      setError(err instanceof Error ? err.message : 'Failed to save product.');
     } finally {
       setSaving('');
     }
+  };
+
+  const resetAdminForms = () => {
+    setEditingProductId(null);
+    setEditingCategoryId(null);
+    setEditingBrandId(null);
+    setProductForm({
+      ...initialProduct,
+      category: categories.length > 0 ? categories[0].name : 'Laptops',
+      brand: brands.length > 0 ? brands[0].name : ''
+    });
+    setCategoryForm(initialCategory);
+    setBrandForm(initialBrand);
+    setTestimonialForm(initialTestimonial);
+    setProductImagePreview('');
+    setBrandLogoPreview('');
+    setCategoryIconPreview('');
+    setConfirmDelete(null);
+  };
+
+  const openModal = (kind: 'product' | 'category' | 'brand' | 'testimonial', mode: 'create' | 'edit' = 'create', item?: Product | Category | Brand | Testimonial) => {
+    resetAdminForms();
+    setModalKind(kind);
+    setModalMode(mode);
+
+    if (kind === 'product' && mode === 'edit' && item && 'id' in item) {
+      setEditingProductId(item.id);
+      setProductForm({
+        name: item.name,
+        category: item.category,
+        brand: item.brand || '',
+        price: String(item.price),
+        image: item.image,
+        description: item.description,
+        rating: String(item.rating || 5)
+      });
+      setProductImagePreview(item.image);
+    }
+
+    if (kind === 'category' && mode === 'edit' && item && '_id' in item) {
+      setEditingCategoryId(item._id || null);
+      setCategoryForm({
+        name: item.name,
+        icon: item.icon
+      });
+      setCategoryIconPreview(item.icon);
+    }
+
+    if (kind === 'brand' && mode === 'edit' && item && '_id' in item) {
+      setEditingBrandId(item._id || null);
+      setBrandForm({
+        name: item.name,
+        logo: item.logo
+      });
+      setBrandLogoPreview(item.logo);
+    }
+
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setModalMode('create');
+    resetAdminForms();
+  };
+
+  const handleEditProduct = (product: Product) => {
+    openModal('product', 'edit', product);
+  };
+
+  const handleCancelProductEdit = () => {
+    closeModal();
   };
 
   const handleDeleteProduct = async (id: number) => {
@@ -177,42 +273,125 @@ export default function Admin() {
     }
   };
 
-  const handleCreateCategory = async (event: React.FormEvent) => {
+  const handleSaveCategory = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving('category');
     setError('');
     setMessage('');
 
     try {
-      const category = await api.createCategory(categoryForm);
-      setCategories((current) => [...current, category]);
-      
-      // Update productForm category option if it was empty
-      setProductForm(prev => prev.category ? prev : { ...prev, category: category.name });
-      setCategoryForm(initialCategory);
-      setMessage(`Category "${category.name}" added successfully.`);
+      if (editingCategoryId) {
+        const updatedCategory = await api.updateCategory(editingCategoryId, categoryForm);
+        setCategories((current) => current.map((c) => (c._id === editingCategoryId ? updatedCategory : c)));
+        setMessage(`Category "${updatedCategory.name}" updated successfully.`);
+        setEditingCategoryId(null);
+      } else {
+        const category = await api.createCategory(categoryForm);
+        setCategories((current) => [...current, category]);
+        setMessage(`Category "${category.name}" added successfully.`);
+      }
+
+      setProductForm(prev => prev.category ? prev : { ...prev, category: categoryForm.name });
+      setIsModalOpen(false);
+      resetAdminForms();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add category.');
+      setError(err instanceof Error ? err.message : 'Failed to save category.');
     } finally {
       setSaving('');
     }
   };
 
-  const handleCreateBrand = async (event: React.FormEvent) => {
+  const handleEditCategory = (category: Category) => {
+    openModal('category', 'edit', category);
+  };
+
+  const handleCancelCategoryEdit = () => {
+    closeModal();
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    setConfirmDelete(null);
+    setError('');
+    setMessage('');
+    try {
+      await api.deleteCategory(id);
+      setCategories((current) => current.filter((category) => category._id !== id));
+      setMessage('Category deleted successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete category.');
+    }
+  };
+
+  const handleSaveBrand = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving('brand');
     setError('');
     setMessage('');
 
     try {
-      const brand = await api.createBrand(brandForm);
-      setBrands((current) => [...current, brand]);
-      setBrandForm(initialBrand);
-      setMessage(`Brand "${brand.name}" added successfully.`);
+      if (editingBrandId) {
+        const updatedBrand = await api.updateBrand(editingBrandId, brandForm);
+        setBrands((current) => current.map((b) => (b._id === editingBrandId ? updatedBrand : b)));
+        setMessage(`Brand "${updatedBrand.name}" updated successfully.`);
+        setEditingBrandId(null);
+      } else {
+        const brand = await api.createBrand(brandForm);
+        setBrands((current) => [...current, brand]);
+        setMessage(`Brand "${brand.name}" added successfully.`);
+      }
+
+      setIsModalOpen(false);
+      resetAdminForms();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add brand.');
+      setError(err instanceof Error ? err.message : 'Failed to save brand.');
     } finally {
       setSaving('');
+    }
+  };
+
+  const handleEditBrand = (brand: Brand) => {
+    openModal('brand', 'edit', brand);
+  };
+
+  const handleCancelBrandEdit = () => {
+    closeModal();
+  };
+
+  const handleDeleteBrand = async (id: string) => {
+    setConfirmDelete(null);
+    setError('');
+    setMessage('');
+    try {
+      await api.deleteBrand(id);
+      setBrands((current) => current.filter((brand) => brand._id !== id));
+      setMessage('Brand deleted successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete brand.');
+    }
+  };
+
+  const handleToggleTestimonialApproval = async (testimonial: Testimonial) => {
+    setError('');
+    setMessage('');
+    try {
+      const updatedTestimonial = await api.approveTestimonial(testimonial._id || '', !testimonial.approved);
+      setTestimonials((current) => current.map((t) => (t._id === updatedTestimonial._id ? updatedTestimonial : t)));
+      setMessage(`Testimonial "${updatedTestimonial.name}" ${updatedTestimonial.approved ? 'approved' : 'unapproved'}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update testimonial.');
+    }
+  };
+
+  const handleDeleteTestimonial = async (id: string) => {
+    setConfirmDelete(null);
+    setError('');
+    setMessage('');
+    try {
+      await api.deleteTestimonial(id);
+      setTestimonials((current) => current.filter((t) => t._id !== id));
+      setMessage('Testimonial deleted successfully.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete testimonial.');
     }
   };
 
@@ -230,6 +409,8 @@ export default function Admin() {
       });
       setTestimonials((current) => [...current, testimonial]);
       setTestimonialForm(initialTestimonial);
+      setIsModalOpen(false);
+      resetAdminForms();
       setMessage(`Testimonial from "${testimonial.name}" added successfully.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add testimonial.');
@@ -301,34 +482,63 @@ export default function Admin() {
 
   return (
     <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-slate-50 text-[#0F172A] min-h-screen relative overflow-hidden">
-      {/* Background blobs for premium styling */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#2563EB]/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#F59E0B]/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
 
       <div className="max-w-7xl mx-auto animate-fade-in relative z-10">
-        
-        {/* Header section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-12 flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+          className="mb-8 flex flex-col lg:flex-row lg:items-start gap-6"
         >
-          <div>
-            <h1 className="text-5xl font-bold text-[#0F172A] mb-4">
-              Admin Control Panel
-            </h1>
-            <p className="text-xl text-gray-600">
-              Add and manage products, categories, brands, and testimonials in real-time.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-full text-sm font-semibold flex items-center gap-2 shadow-sm">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Connected to DB
+          <div className="lg:w-72 shrink-0 rounded-3xl border border-gray-200 bg-white/80 p-6 shadow-xl backdrop-blur">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-[#0F172A]">Admin Panel</h2>
+              <p className="text-sm text-gray-600 mt-2">Manage storefront content with a focused sidebar.</p>
+            </div>
+            <nav className="space-y-2">
+              {[
+                { key: 'products', label: 'Products', icon: <FaBoxes /> },
+                { key: 'categories', label: 'Categories', icon: <FaTags /> },
+                { key: 'brands', label: 'Brands', icon: <FaAward /> },
+                { key: 'testimonials', label: 'Testimonials', icon: <FaCommentAlt /> }
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveTab(item.key as typeof activeTab)}
+                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeTab === item.key ? 'bg-[#2563EB] text-white shadow-lg shadow-blue-500/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+            <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">
+              <div className="font-semibold">Connected to DB</div>
+              <div className="text-xs mt-1">All CRUD actions update the live database.</div>
             </div>
           </div>
-        </motion.div>
 
-        {/* Alerts */}
+          <div className="flex-1">
+            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h1 className="text-4xl font-bold text-[#0F172A]">{activeTab === 'products' ? 'Products' : activeTab === 'categories' ? 'Categories' : activeTab === 'brands' ? 'Brands' : 'Testimonials'}</h1>
+                <p className="text-lg text-gray-600 mt-2">Create, edit, and remove store items from here.</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (activeTab === 'products') openModal('product');
+                  if (activeTab === 'categories') openModal('category');
+                  if (activeTab === 'brands') openModal('brand');
+                  if (activeTab === 'testimonials') openModal('testimonial');
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
+              >
+                <FaPlus /> Add {activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : activeTab === 'brands' ? 'Brand' : 'Testimonial'}
+              </button>
+            </div>
+
+            {/* Alerts */}
         <AnimatePresence>
           {message && (
             <motion.div
@@ -365,14 +575,6 @@ export default function Admin() {
           <SummaryCard label="Categories" value={categories.length} icon={<FaTags className="text-purple-500" />} />
           <SummaryCard label="Brands" value={brands.length} icon={<FaAward className="text-amber-500" />} />
           <SummaryCard label="Testimonials" value={testimonials.length} icon={<FaCommentAlt className="text-rose-500" />} />
-        </div>
-
-        {/* Tab Selection */}
-        <div className="flex flex-wrap gap-3 mb-10 overflow-x-auto pb-2">
-          <TabButton active={activeTab === 'products'} onClick={() => setActiveTab('products')} label="Products" icon={<FaBoxes />} />
-          <TabButton active={activeTab === 'categories'} onClick={() => setActiveTab('categories')} label="Categories" icon={<FaTags />} />
-          <TabButton active={activeTab === 'brands'} onClick={() => setActiveTab('brands')} label="Brands" icon={<FaAward />} />
-          <TabButton active={activeTab === 'testimonials'} onClick={() => setActiveTab('testimonials')} label="Testimonials" icon={<FaCommentAlt />} />
         </div>
 
         {/* Content Panes */}
@@ -433,30 +635,39 @@ export default function Admin() {
                                 ${product.price.toLocaleString()}
                               </td>
                               <td className="py-4 text-right pr-4">
-                                {confirmDelete?.type === 'product' && confirmDelete.id === product.id ? (
-                                  <div className="flex gap-2 justify-end">
-                                    <button
-                                      onClick={() => handleDeleteProduct(product.id)}
-                                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer"
-                                    >
-                                      Confirm
-                                    </button>
-                                    <button
-                                      onClick={() => setConfirmDelete(null)}
-                                      className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition cursor-pointer"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                ) : (
+                                <div className="flex items-center justify-end gap-2">
                                   <button
-                                    onClick={() => setConfirmDelete({ type: 'product', id: product.id })}
-                                    className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition cursor-pointer"
-                                    title="Delete product"
+                                    onClick={() => handleEditProduct(product)}
+                                    className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition cursor-pointer"
+                                    title="Edit product"
                                   >
-                                    <FaTrash size={14} />
+                                    <FaEdit size={14} />
                                   </button>
-                                )}
+                                  {confirmDelete?.type === 'product' && confirmDelete.id === product.id ? (
+                                    <div className="flex gap-2 justify-end">
+                                      <button
+                                        onClick={() => handleDeleteProduct(product.id)}
+                                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                                      >
+                                        Confirm
+                                      </button>
+                                      <button
+                                        onClick={() => setConfirmDelete(null)}
+                                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmDelete({ type: 'product', id: product.id })}
+                                      className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition cursor-pointer"
+                                      title="Delete product"
+                                    >
+                                      <FaTrash size={14} />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -466,81 +677,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Add Product Form */}
-                <div className="bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 h-fit shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-[#2563EB]">
-                    <FaPlus size={16} /> Add Product
-                  </h2>
-                  <form onSubmit={handleCreateProduct} className="space-y-4">
-                    <TextInput
-                      label="Product Name"
-                      value={productForm.name}
-                      onChange={(value) => setProductForm({ ...productForm, name: value })}
-                      required
-                      placeholder="e.g. MacBook Pro M3"
-                    />
-
-                    <div>
-                      <span className="block text-sm font-semibold text-gray-700 mb-1.5">Category</span>
-                      <select
-                        value={productForm.category}
-                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-250 rounded-xl text-gray-800 focus:outline-none focus:border-[#2563EB] focus:bg-white transition cursor-pointer"
-                        required
-                      >
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.name}>
-                            {cat.name}
-                          </option>
-                        ))}
-                        {categories.length === 0 && (
-                          <option value="">No categories created yet</option>
-                        )}
-                      </select>
-                    </div>
-
-                    <TextInput
-                      label="Price ($)"
-                      type="number"
-                      value={productForm.price}
-                      onChange={(value) => setProductForm({ ...productForm, price: value })}
-                      required
-                      placeholder="e.g. 1299"
-                    />
-
-                    <TextInput
-                      label="Image URL"
-                      value={productForm.image}
-                      onChange={(value) => setProductForm({ ...productForm, image: value })}
-                      placeholder="Leave blank for placeholder image"
-                    />
-
-                    <TextArea
-                      label="Description"
-                      value={productForm.description}
-                      onChange={(value) => setProductForm({ ...productForm, description: value })}
-                      required
-                      placeholder="Highlight features, specs, and details..."
-                    />
-
-                    <div>
-                      <span className="block text-sm font-semibold text-gray-700 mb-1.5">Rating (1-5)</span>
-                      <select
-                        value={productForm.rating}
-                        onChange={(e) => setProductForm({ ...productForm, rating: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-250 rounded-xl text-gray-850 focus:outline-none focus:border-[#2563EB] focus:bg-white transition cursor-pointer"
-                        required
-                      >
-                        <option value="5">5 stars</option>
-                        <option value="4.5">4.5 stars</option>
-                        <option value="4">4 stars</option>
-                        <option value="3">3 stars</option>
-                      </select>
-                    </div>
-
-                    <SubmitButton label="Save Product" busy={saving === 'product'} />
-                  </form>
-                </div>
               </div>
             )}
 
@@ -554,11 +690,51 @@ export default function Admin() {
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {categories.map((category) => (
-                      <div key={category.id} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-3">
-                        <DynamicFaIcon name={category.icon} size={24} className="text-purple-550" />
-                        <div>
-                          <div className="font-bold text-gray-800">{category.name}</div>
-                          <div className="text-xs text-gray-500">ID: {category.id}</div>
+                      <div key={category.id} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-3 justify-between">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={category.icon}
+                            alt={category.name}
+                            className="w-10 h-10 rounded-xl object-cover border border-gray-200"
+                          />
+                          <div>
+                            <div className="font-bold text-gray-800">{category.name}</div>
+                            <div className="text-xs text-gray-500">ID: {category.id}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCategory(category)}
+                            className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
+                            title="Edit category"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          {confirmDelete?.type === 'category' && confirmDelete.id === category._id ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleDeleteCategory(category._id || '')}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete({ type: 'category', id: category._id })}
+                              className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
+                              title="Delete category"
+                            >
+                              <FaTrash size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -568,47 +744,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Add Category Form */}
-                <div className="bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 h-fit shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-purple-600">
-                    <FaPlus size={16} /> Add Category
-                  </h2>
-                  <form onSubmit={handleCreateCategory} className="space-y-4">
-                    <TextInput
-                      label="Category Name"
-                      value={categoryForm.name}
-                      onChange={(value) => setCategoryForm({ ...categoryForm, name: value })}
-                      required
-                      placeholder="e.g. Smart Watches"
-                    />
-
-                    <div>
-                      <span className="block text-sm font-semibold text-gray-700 mb-2">Category Icon (React Icon)</span>
-                      <div className="flex gap-2 flex-wrap mb-3 p-3 bg-gray-50/60 border border-gray-200 rounded-xl">
-                        {categoryIcons.map((iconName) => (
-                          <button
-                            key={iconName}
-                            type="button"
-                            onClick={() => setCategoryForm({ ...categoryForm, icon: iconName })}
-                            className={`p-2 bg-white hover:bg-gray-100 rounded-xl border border-gray-250 transition cursor-pointer flex items-center justify-center ${categoryForm.icon === iconName ? 'bg-purple-50 border-purple-600 ring-2 ring-purple-100' : ''}`}
-                            title={iconName}
-                          >
-                            <DynamicFaIcon name={iconName} size={20} className="text-purple-600" />
-                          </button>
-                        ))}
-                      </div>
-                      <TextInput
-                        label="Selected Icon Name (Or Type Custom)"
-                        value={categoryForm.icon}
-                        onChange={(value) => setCategoryForm({ ...categoryForm, icon: value })}
-                        required
-                        placeholder="e.g. FaLaptop"
-                      />
-                    </div>
-
-                    <SubmitButton label="Save Category" busy={saving === 'category'} />
-                  </form>
-                </div>
               </div>
             )}
 
@@ -622,9 +757,49 @@ export default function Admin() {
                   </h2>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {brands.map((brand, index) => (
-                      <div key={brand._id || index} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
-                        <DynamicFaIcon name={brand.logo} size={24} className="text-amber-500" />
-                        <div className="font-bold text-gray-800 text-sm">{brand.name}</div>
+                      <div key={brand._id || index} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-between text-center gap-4">
+                        <div className="flex flex-col items-center gap-2">
+                          <img
+                            src={brand.logo}
+                            alt={brand.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-gray-200"
+                          />
+                          <div className="font-bold text-gray-800 text-sm">{brand.name}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEditBrand(brand)}
+                            className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
+                            title="Edit brand"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          {confirmDelete?.type === 'brand' && confirmDelete.id === brand._id ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleDeleteBrand(brand._id || '')}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDelete({ type: 'brand', id: brand._id })}
+                              className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
+                              title="Delete brand"
+                            >
+                              <FaTrash size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {brands.length === 0 && (
@@ -633,47 +808,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Add Brand Form */}
-                <div className="bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 h-fit shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-amber-600">
-                    <FaPlus size={16} /> Add Brand
-                  </h2>
-                  <form onSubmit={handleCreateBrand} className="space-y-4">
-                    <TextInput
-                      label="Brand Name"
-                      value={brandForm.name}
-                      onChange={(value) => setBrandForm({ ...brandForm, name: value })}
-                      required
-                      placeholder="e.g. Apple, Lenovo, Dell"
-                    />
-
-                    <div>
-                      <span className="block text-sm font-semibold text-gray-700 mb-2">Brand Logo (React Icon)</span>
-                      <div className="flex gap-2 flex-wrap mb-3 p-3 bg-gray-50/60 border border-gray-200 rounded-xl">
-                        {brandLogos.map((iconName) => (
-                          <button
-                            key={iconName}
-                            type="button"
-                            onClick={() => setBrandForm({ ...brandForm, logo: iconName })}
-                            className={`p-2 bg-white hover:bg-gray-100 rounded-xl border border-gray-250 transition cursor-pointer flex items-center justify-center ${brandForm.logo === iconName ? 'bg-amber-50 border-amber-600 ring-2 ring-amber-100' : ''}`}
-                            title={iconName}
-                          >
-                            <DynamicFaIcon name={iconName} size={20} className="text-amber-500" />
-                          </button>
-                        ))}
-                      </div>
-                      <TextInput
-                        label="Selected Logo Icon Name"
-                        value={brandForm.logo}
-                        onChange={(value) => setBrandForm({ ...brandForm, logo: value })}
-                        required
-                        placeholder="e.g. FaApple"
-                      />
-                    </div>
-
-                    <SubmitButton label="Save Brand" busy={saving === 'brand'} />
-                  </form>
-                </div>
               </div>
             )}
 
@@ -688,13 +822,52 @@ export default function Admin() {
                   <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
                     {testimonials.map((test, index) => (
                       <div key={test._id || index} className="p-5 bg-gray-50 border border-gray-200 rounded-2xl">
-                        <div className="flex text-amber-500 gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            i < test.rating ? <FaStar key={i} size={14} /> : <FaRegStar key={i} size={14} />
-                          ))}
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                          <div className="flex text-amber-500 gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              i < test.rating ? <FaStar key={i} size={14} /> : <FaRegStar key={i} size={14} />
+                            ))}
+                          </div>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${test.approved ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {test.approved ? 'Approved' : 'Pending'}
+                          </span>
                         </div>
                         <p className="text-gray-700 italic text-sm mb-3">"{test.text}"</p>
-                        <div className="text-xs text-gray-500 font-bold">- {test.name}</div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs text-gray-500 font-bold">- {test.name}</div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleTestimonialApproval(test)}
+                              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold transition"
+                            >
+                              {test.approved ? 'Unapprove' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDelete({ type: 'testimonial', id: test._id })}
+                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold transition"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {confirmDelete?.type === 'testimonial' && confirmDelete.id === test._id && (
+                          <div className="mt-3 flex gap-2 justify-end">
+                            <button
+                              onClick={() => handleDeleteTestimonial(test._id || '')}
+                              className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
+                            >
+                              Confirm Delete
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(null)}
+                              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {testimonials.length === 0 && (
@@ -703,50 +876,202 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Add Testimonial Form */}
-                <div className="bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 h-fit shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-rose-600">
-                    <FaPlus size={16} /> Add Testimonial
-                  </h2>
-                  <form onSubmit={handleCreateTestimonial} className="space-y-4">
-                    <TextInput
-                      label="Customer Name"
-                      value={testimonialForm.name}
-                      onChange={(value) => setTestimonialForm({ ...testimonialForm, name: value })}
-                      required
-                      placeholder="e.g. John Doe"
-                    />
-
-                    <TextArea
-                      label="Feedback Text"
-                      value={testimonialForm.text}
-                      onChange={(value) => setTestimonialForm({ ...testimonialForm, text: value })}
-                      required
-                      placeholder="Customer words, review details..."
-                    />
-
-                    <div>
-                      <span className="block text-sm font-semibold text-gray-700 mb-1.5">Rating</span>
-                      <select
-                        value={testimonialForm.rating}
-                        onChange={(e) => setTestimonialForm({ ...testimonialForm, rating: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-gray-50 border border-gray-250 rounded-xl text-gray-800 focus:outline-none focus:border-[#2563EB] focus:bg-white transition cursor-pointer"
-                        required
-                      >
-                        <option value="5">5 stars</option>
-                        <option value="4">4 stars</option>
-                        <option value="3">3 stars</option>
-                      </select>
-                    </div>
-
-                    <SubmitButton label="Save Testimonial" busy={saving === 'testimonial'} />
-                  </form>
-                </div>
               </div>
             )}
           </div>
         )}
+        </div>
+        </motion.div>
       </div>
+
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8"
+            onClick={closeModal}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 16, opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-6 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-[#0F172A]">
+                    {modalMode === 'edit' ? `Edit ${modalKind}` : `Create ${modalKind}`}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {modalKind === 'product' && 'Update the product details quickly.'}
+                    {modalKind === 'category' && 'Add or refine a category for the storefront.'}
+                    {modalKind === 'brand' && 'Manage a brand card and logo.'}
+                    {modalKind === 'testimonial' && 'Add a testimonial for public approval.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-full border border-gray-200 p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              {modalKind === 'product' && (
+                <form onSubmit={handleSaveProduct} className="space-y-4">
+                  <TextInput label="Product Name" value={productForm.name} onChange={(value) => setProductForm({ ...productForm, name: value })} required placeholder="e.g. MacBook Pro M3" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Category</span>
+                    <select
+                      value={productForm.category}
+                      onChange={(event) => setProductForm({ ...productForm, category: event.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
+                      required
+                    >
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.name}>{category.name}</option>
+                      ))}
+                      {categories.length === 0 && <option value="">No categories created yet</option>}
+                    </select>
+                  </div>
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Brand</span>
+                    <select
+                      value={productForm.brand}
+                      onChange={(event) => setProductForm({ ...productForm, brand: event.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
+                    >
+                      <option value="">No Brand</option>
+                      {brands.map((brand) => (
+                        <option key={brand._id} value={brand.name}>{brand.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <TextInput label="Price ($)" type="number" value={productForm.price} onChange={(value) => setProductForm({ ...productForm, price: value })} required placeholder="e.g. 1299" min="0" step="0.01" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Product Image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setProductForm({ ...productForm, image: file });
+                          setProductImagePreview(URL.createObjectURL(file));
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {productImagePreview && <img src={productImagePreview} alt="Preview" className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover" />}
+                  </div>
+                  <TextArea label="Description" value={productForm.description} onChange={(value) => setProductForm({ ...productForm, description: value })} required placeholder="Describe the product" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Rating (1-5)</span>
+                    <select
+                      value={productForm.rating}
+                      onChange={(event) => setProductForm({ ...productForm, rating: event.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
+                      required
+                    >
+                      <option value="5">5 stars</option>
+                      <option value="4.5">4.5 stars</option>
+                      <option value="4">4 stars</option>
+                      <option value="3">3 stars</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <SubmitButton label={modalMode === 'edit' ? 'Update Product' : 'Save Product'} busy={saving === 'product'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  </div>
+                </form>
+              )}
+
+              {modalKind === 'category' && (
+                <form onSubmit={handleSaveCategory} className="space-y-4">
+                  <TextInput label="Category Name" value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} required placeholder="e.g. Smart Watches" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Category Icon</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setCategoryForm({ ...categoryForm, icon: file });
+                          setCategoryIconPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-50 file:px-4 file:py-2 file:font-semibold file:text-purple-700 hover:file:bg-purple-100"
+                      required={!editingCategoryId}
+                    />
+                    {categoryIconPreview && <img src={categoryIconPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-gray-200 object-cover" />}
+                  </div>
+                  <div className="flex gap-3">
+                    <SubmitButton label={modalMode === 'edit' ? 'Update Category' : 'Save Category'} busy={saving === 'category'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  </div>
+                </form>
+              )}
+
+              {modalKind === 'brand' && (
+                <form onSubmit={handleSaveBrand} className="space-y-4">
+                  <TextInput label="Brand Name" value={brandForm.name} onChange={(value) => setBrandForm({ ...brandForm, name: value })} required placeholder="e.g. Apple" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Brand Logo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          setBrandForm({ ...brandForm, logo: file });
+                          setBrandLogoPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-50 file:px-4 file:py-2 file:font-semibold file:text-amber-700 hover:file:bg-amber-100"
+                      required={!editingBrandId}
+                    />
+                    {brandLogoPreview && <img src={brandLogoPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-gray-200 object-cover" />}
+                  </div>
+                  <div className="flex gap-3">
+                    <SubmitButton label={modalMode === 'edit' ? 'Update Brand' : 'Save Brand'} busy={saving === 'brand'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  </div>
+                </form>
+              )}
+
+              {modalKind === 'testimonial' && (
+                <form onSubmit={handleCreateTestimonial} className="space-y-4">
+                  <TextInput label="Customer Name" value={testimonialForm.name} onChange={(value) => setTestimonialForm({ ...testimonialForm, name: value })} required placeholder="e.g. John Doe" />
+                  <TextArea label="Feedback Text" value={testimonialForm.text} onChange={(value) => setTestimonialForm({ ...testimonialForm, text: value })} required placeholder="Share the customer feedback" />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Rating</span>
+                    <select
+                      value={testimonialForm.rating}
+                      onChange={(event) => setTestimonialForm({ ...testimonialForm, rating: event.target.value })}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
+                      required
+                    >
+                      <option value="5">5 stars</option>
+                      <option value="4">4 stars</option>
+                      <option value="3">3 stars</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-3">
+                    <SubmitButton label="Save Testimonial" busy={saving === 'testimonial'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  </div>
+                </form>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -55,6 +55,9 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
 
       {/* Content */}
       <div className="p-4">
+        <p className="text-xs font-bold uppercase text-[#2563EB] mb-1">
+          {[product.brand, product.category].filter(Boolean).join(' / ')}
+        </p>
         <Link to={`/products/${product.id}`} className="block text-lg font-bold text-[#0F172A] mb-1 hover:text-[#2563EB] transition-colors">
           {product.name}
         </Link>
@@ -101,3 +104,4 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
     </motion.div>
   );
 }
+
