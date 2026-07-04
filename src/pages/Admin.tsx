@@ -18,7 +18,6 @@ import {
 } from 'react-icons/fa';
 import { api, type Brand, type Category, type Testimonial } from '../services/api';
 import { type Product } from '../data/products';
-import DynamicFaIcon from '../components/DynamicFaIcon';
 import { useAuth } from '../context/AuthContext';
 
 
@@ -56,9 +55,23 @@ export default function Admin() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'brands' | 'testimonials'>('products');
-  const [productForm, setProductForm] = useState(initialProduct);
-  const [categoryForm, setCategoryForm] = useState(initialCategory);
-  const [brandForm, setBrandForm] = useState(initialBrand);
+  const [productForm, setProductForm] = useState<{
+    name: string;
+    category: string;
+    brand: string;
+    price: string;
+    image: string | File;
+    description: string;
+    rating: string;
+  }>(initialProduct);
+  const [categoryForm, setCategoryForm] = useState<{
+    name: string;
+    icon: string | File;
+  }>(initialCategory);
+  const [brandForm, setBrandForm] = useState<{
+    name: string;
+    logo: string | File;
+  }>(initialBrand);
   const [testimonialForm, setTestimonialForm] = useState(initialTestimonial);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState('');
@@ -80,35 +93,6 @@ export default function Admin() {
   const [modalKind, setModalKind] = useState<'product' | 'category' | 'brand' | 'testimonial'>('product');
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
 
-  // Suggestions for React Icons
-  const categoryIcons = [
-    'FaLaptop',
-    'FaMobileAlt',
-    'FaTabletAlt',
-    'FaClock',
-    'FaHeadphones',
-    'FaPlug',
-    'FaTv',
-    'FaKeyboard',
-    'FaMouse',
-    'FaGamepad',
-    'FaCamera',
-    'FaPrint'
-  ];
-  const brandLogos = [
-    'FaApple',
-    'FaAndroid',
-    'FaWindows',
-    'FaGoogle',
-    'FaIntel',
-    'FaPlaystation',
-    'FaXbox',
-    'FaHdd',
-    'FaBriefcase',
-    'FaMicrochip',
-    'FaLeaf',
-    'FaGlobe'
-  ];
 
   // Fetch dashboard data if authenticated as admin
   useEffect(() => {
@@ -210,36 +194,39 @@ export default function Admin() {
     setModalKind(kind);
     setModalMode(mode);
 
-    if (kind === 'product' && mode === 'edit' && item && 'id' in item) {
-      setEditingProductId(item.id);
+    if (kind === 'product' && mode === 'edit' && item) {
+      const productItem = item as Product;
+      setEditingProductId(productItem.id);
       setProductForm({
-        name: item.name,
-        category: item.category,
-        brand: item.brand || '',
-        price: String(item.price),
-        image: item.image,
-        description: item.description,
-        rating: String(item.rating || 5)
+        name: productItem.name,
+        category: productItem.category,
+        brand: productItem.brand || '',
+        price: String(productItem.price),
+        image: productItem.image,
+        description: productItem.description,
+        rating: String(productItem.rating || 5)
       });
-      setProductImagePreview(item.image);
+      setProductImagePreview(productItem.image);
     }
 
-    if (kind === 'category' && mode === 'edit' && item && '_id' in item) {
-      setEditingCategoryId(item._id || null);
+    if (kind === 'category' && mode === 'edit' && item) {
+      const categoryItem = item as Category;
+      setEditingCategoryId(categoryItem._id || null);
       setCategoryForm({
-        name: item.name,
-        icon: item.icon
+        name: categoryItem.name,
+        icon: categoryItem.icon
       });
-      setCategoryIconPreview(item.icon);
+      setCategoryIconPreview(categoryItem.icon);
     }
 
-    if (kind === 'brand' && mode === 'edit' && item && '_id' in item) {
-      setEditingBrandId(item._id || null);
+    if (kind === 'brand' && mode === 'edit' && item) {
+      const brandItem = item as Brand;
+      setEditingBrandId(brandItem._id || null);
       setBrandForm({
-        name: item.name,
-        logo: item.logo
+        name: brandItem.name,
+        logo: brandItem.logo
       });
-      setBrandLogoPreview(item.logo);
+      setBrandLogoPreview(brandItem.logo);
     }
 
     setIsModalOpen(true);
@@ -253,10 +240,6 @@ export default function Admin() {
 
   const handleEditProduct = (product: Product) => {
     openModal('product', 'edit', product);
-  };
-
-  const handleCancelProductEdit = () => {
-    closeModal();
   };
 
   const handleDeleteProduct = async (id: number) => {
@@ -305,10 +288,6 @@ export default function Admin() {
     openModal('category', 'edit', category);
   };
 
-  const handleCancelCategoryEdit = () => {
-    closeModal();
-  };
-
   const handleDeleteCategory = async (id: string) => {
     setConfirmDelete(null);
     setError('');
@@ -351,10 +330,6 @@ export default function Admin() {
 
   const handleEditBrand = (brand: Brand) => {
     openModal('brand', 'edit', brand);
-  };
-
-  const handleCancelBrandEdit = () => {
-    closeModal();
   };
 
   const handleDeleteBrand = async (id: string) => {
@@ -481,49 +456,70 @@ export default function Admin() {
   );
 
   return (
-    <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-slate-50 text-[#0F172A] min-h-screen relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#2563EB]/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#F59E0B]/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+    <div className="pt-24 pb-20 px-4 sm:px-6 lg:px-8 bg-slate-50 text-[#0F172A] min-h-screen relative overflow-hidden font-sans">
+      {/* Modern gradient accent glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#2563EB]/5 rounded-full blur-[120px] -z-10 animate-pulse duration-[8000ms]"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[120px] -z-10 animate-pulse duration-[8000ms]"></div>
 
       <div className="max-w-7xl mx-auto animate-fade-in relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
           className="mb-8 flex flex-col lg:flex-row lg:items-start gap-6"
         >
-          <div className="lg:w-72 shrink-0 rounded-3xl border border-gray-200 bg-white/80 p-6 shadow-xl backdrop-blur">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-[#0F172A]">Admin Panel</h2>
-              <p className="text-sm text-gray-600 mt-2">Manage storefront content with a focused sidebar.</p>
+          {/* Sidebar Nav */}
+          <div className="lg:w-72 shrink-0 rounded-2xl border border-slate-250 bg-white p-5 shadow-sm">
+            <div className="mb-5 pb-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-800 tracking-tight">Admin Console</h2>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">Manage storefront items, catalog directories, and feedback approval.</p>
             </div>
-            <nav className="space-y-2">
+            <nav className="space-y-1">
               {[
                 { key: 'products', label: 'Products', icon: <FaBoxes /> },
                 { key: 'categories', label: 'Categories', icon: <FaTags /> },
                 { key: 'brands', label: 'Brands', icon: <FaAward /> },
                 { key: 'testimonials', label: 'Testimonials', icon: <FaCommentAlt /> }
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setActiveTab(item.key as typeof activeTab)}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeTab === item.key ? 'bg-[#2563EB] text-white shadow-lg shadow-blue-500/20' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              ))}
+              ].map((item) => {
+                const isActive = activeTab === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => setActiveTab(item.key as typeof activeTab)}
+                    className={`flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-semibold transition-all duration-200 relative cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-500/10'
+                        : 'bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="grow">{item.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabIndicator"
+                        className="w-1.5 h-1.5 rounded-full bg-white"
+                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </nav>
-            <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-700">
-              <div className="font-semibold">Connected to DB</div>
-              <div className="text-xs mt-1">All CRUD actions update the live database.</div>
-            </div>
           </div>
 
-          <div className="flex-1">
-            <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Main Panel Content */}
+          <div className="flex-1 w-full">
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-4xl font-bold text-[#0F172A]">{activeTab === 'products' ? 'Products' : activeTab === 'categories' ? 'Categories' : activeTab === 'brands' ? 'Brands' : 'Testimonials'}</h1>
-                <p className="text-lg text-gray-600 mt-2">Create, edit, and remove store items from here.</p>
+                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {activeTab === 'products' ? 'Products Catalog' : activeTab === 'categories' ? 'Categories Folder' : activeTab === 'brands' ? 'Brands Directory' : 'Customer Testimonials'}
+                </h1>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {activeTab === 'products' && 'View, update, or clear retail items listed on the store.'}
+                  {activeTab === 'categories' && 'Design organizational classifications for product sorting.'}
+                  {activeTab === 'brands' && 'Register hardware manufacturer profiles and corporate emblems.'}
+                  {activeTab === 'testimonials' && 'Moderate customer statements and toggle homepage highlights.'}
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -532,429 +528,437 @@ export default function Admin() {
                   if (activeTab === 'brands') openModal('brand');
                   if (activeTab === 'testimonials') openModal('testimonial');
                 }}
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow hover:shadow-blue-500/10 cursor-pointer hover:from-blue-700 hover:to-indigo-750 transition-all duration-200"
               >
-                <FaPlus /> Add {activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : activeTab === 'brands' ? 'Brand' : 'Testimonial'}
+                <FaPlus size={12} /> Add {activeTab === 'products' ? 'Product' : activeTab === 'categories' ? 'Category' : activeTab === 'brands' ? 'Brand' : 'Testimonial'}
               </button>
             </div>
 
             {/* Alerts */}
-        <AnimatePresence>
-          {message && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 rounded-2xl bg-emerald-50 border-l-4 border-emerald-500 text-emerald-850 font-medium flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <FaCheck /> {message}
-              </div>
-              <button onClick={() => setMessage('')} className="text-emerald-650 hover:text-emerald-850 cursor-pointer"><FaTimes /></button>
-            </motion.div>
-          )}
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 rounded-2xl bg-red-50 border-l-4 border-red-500 text-red-850 font-medium flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500"></span> {error}
-              </div>
-              <button onClick={() => setError('')} className="text-rose-650 hover:text-rose-850 cursor-pointer"><FaTimes /></button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Summary Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <SummaryCard label="Products" value={products.length} icon={<FaBoxes className="text-blue-500" />} />
-          <SummaryCard label="Categories" value={categories.length} icon={<FaTags className="text-purple-500" />} />
-          <SummaryCard label="Brands" value={brands.length} icon={<FaAward className="text-amber-500" />} />
-          <SummaryCard label="Testimonials" value={testimonials.length} icon={<FaCommentAlt className="text-rose-500" />} />
-        </div>
-
-        {/* Content Panes */}
-        {loading ? (
-          <div className="py-24 text-center text-gray-500 flex flex-col items-center justify-center gap-3">
-            <FaSpinner className="animate-spin text-3xl text-blue-500" />
-            <p className="font-semibold">Loading console data...</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            
-            {/* Products Tab */}
-            {activeTab === 'products' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Product List */}
-                <div className="lg:col-span-2 bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900">
-                      <FaBoxes className="text-blue-500" /> Existing Products
-                    </h2>
-                    <input
-                      type="text"
-                      placeholder="Search name or category..."
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      className="px-4 py-2 w-full sm:w-64 bg-gray-50 border border-gray-250 rounded-xl text-sm focus:outline-none focus:border-[#2563EB] focus:bg-white text-gray-800"
-                    />
+            <AnimatePresence>
+              {message && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-6 p-4 rounded-xl bg-emerald-50/60 border border-emerald-100 text-emerald-850 font-medium flex items-center justify-between text-sm shadow-sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <FaCheck className="text-emerald-600 shrink-0" />
+                    <span>{message}</span>
                   </div>
+                  <button onClick={() => setMessage('')} className="text-emerald-500 hover:text-emerald-800 cursor-pointer transition ml-2"><FaTimes /></button>
+                </motion.div>
+              )}
 
-                  <div className="overflow-x-auto max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                    {filteredProducts.length === 0 ? (
-                      <p className="text-center py-20 text-gray-400 font-medium">No products found matching query.</p>
-                    ) : (
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-gray-200 text-gray-500 text-sm font-semibold">
-                            <th className="pb-3 w-16">Item</th>
-                            <th className="pb-3 pl-4">Details</th>
-                            <th className="pb-3 text-right">Price</th>
-                            <th className="pb-3 text-right pr-4">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {filteredProducts.map((product) => (
-                            <tr key={product.id} className="group hover:bg-blue-50/20 transition">
-                              <td className="py-4">
-                                <img
-                                  src={product.image}
-                                  alt={product.name}
-                                  className="w-12 h-12 rounded-xl object-cover border border-gray-200 group-hover:scale-105 transition duration-200"
-                                />
-                              </td>
-                              <td className="py-4 pl-4">
-                                <div className="font-bold text-gray-800 group-hover:text-blue-600 transition">{product.name}</div>
-                                <div className="text-xs text-gray-500 font-medium mt-0.5">{product.category}</div>
-                              </td>
-                              <td className="py-4 text-right font-bold text-gray-900">
-                                ${product.price.toLocaleString()}
-                              </td>
-                              <td className="py-4 text-right pr-4">
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => handleEditProduct(product)}
-                                    className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition cursor-pointer"
-                                    title="Edit product"
-                                  >
-                                    <FaEdit size={14} />
-                                  </button>
-                                  {confirmDelete?.type === 'product' && confirmDelete.id === product.id ? (
-                                    <div className="flex gap-2 justify-end">
-                                      <button
-                                        onClick={() => handleDeleteProduct(product.id)}
-                                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition cursor-pointer"
-                                      >
-                                        Confirm
-                                      </button>
-                                      <button
-                                        onClick={() => setConfirmDelete(null)}
-                                        className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition cursor-pointer"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => setConfirmDelete({ type: 'product', id: product.id })}
-                                      className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition cursor-pointer"
-                                      title="Delete product"
-                                    >
-                                      <FaTrash size={14} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mb-6 p-4 rounded-xl bg-rose-50/60 border border-rose-100 text-rose-850 font-medium flex items-center justify-between text-sm shadow-sm"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0"></span>
+                    <span>{error}</span>
+                  </div>
+                  <button onClick={() => setError('')} className="text-rose-500 hover:text-rose-800 cursor-pointer transition ml-2"><FaTimes /></button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Summary Statistics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <SummaryCard label="Products" value={products.length} icon={<FaBoxes className="text-blue-500" />} />
+              <SummaryCard label="Categories" value={categories.length} icon={<FaTags className="text-purple-500" />} />
+              <SummaryCard label="Brands" value={brands.length} icon={<FaAward className="text-amber-500" />} />
+              <SummaryCard label="Testimonials" value={testimonials.length} icon={<FaCommentAlt className="text-rose-500" />} />
+            </div>
+
+            {/* Content Panes */}
+            {loading ? (
+              <div className="py-24 text-center text-slate-400 border border-slate-100 bg-white rounded-2xl flex flex-col items-center justify-center gap-3 shadow-sm">
+                <FaSpinner className="animate-spin text-2xl text-blue-500" />
+                <p className="font-semibold text-sm">Loading console dashboard...</p>
+              </div>
+            ) : (
+              <div className="w-full">
+                
+                {/* Products Tab */}
+                {activeTab === 'products' && (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                      <h2 className="text-base font-bold flex items-center gap-2 text-slate-800">
+                        <FaBoxes className="text-blue-500" /> Products Catalog ({filteredProducts.length})
+                      </h2>
+                      <input
+                        type="text"
+                        placeholder="Search model or category..."
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        className="px-3.5 py-2 w-full sm:w-72 bg-slate-50 hover:bg-slate-100/50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 text-slate-800 transition-all duration-200 font-medium"
+                      />
+                    </div>
+
+                    <div className="overflow-x-auto max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                      {filteredProducts.length === 0 ? (
+                        <p className="text-center py-20 text-slate-450 text-sm font-medium">No products found matching your search query.</p>
+                      ) : (
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                              <th className="pb-3 w-16">Item</th>
+                              <th className="pb-3 pl-4">Details</th>
+                              <th className="pb-3 text-right">Price</th>
+                              <th className="pb-3 text-right pr-4">Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* Categories Tab */}
-            {activeTab === 'categories' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Categories List */}
-                  <div className="lg:col-span-2 bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-gray-900">
-                    <FaTags className="text-purple-500" /> Existing Categories
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    {categories.map((category) => (
-                      <div key={category.id} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center gap-3 justify-between">
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={category.icon}
-                            alt={category.name}
-                            className="w-10 h-10 rounded-xl object-cover border border-gray-200"
-                          />
-                          <div>
-                            <div className="font-bold text-gray-800">{category.name}</div>
-                            <div className="text-xs text-gray-500">ID: {category.id}</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEditCategory(category)}
-                            className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
-                            title="Edit category"
-                          >
-                            <FaEdit size={14} />
-                          </button>
-                          {confirmDelete?.type === 'category' && confirmDelete.id === category._id ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleDeleteCategory(category._id || '')}
-                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setConfirmDelete(null)}
-                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmDelete({ type: 'category', id: category._id })}
-                              className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
-                              title="Delete category"
-                            >
-                              <FaTrash size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {categories.length === 0 && (
-                      <div className="col-span-full py-16 text-center text-gray-450">No categories found.</div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* Brands Tab */}
-            {activeTab === 'brands' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Brands List */}
-                  <div className="lg:col-span-2 bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-gray-900">
-                    <FaAward className="text-amber-500" /> Registered Brands
-                  </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    {brands.map((brand, index) => (
-                      <div key={brand._id || index} className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex flex-col items-center justify-between text-center gap-4">
-                        <div className="flex flex-col items-center gap-2">
-                          <img
-                            src={brand.logo}
-                            alt={brand.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-gray-200"
-                          />
-                          <div className="font-bold text-gray-800 text-sm">{brand.name}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEditBrand(brand)}
-                            className="p-2 bg-gray-50 hover:bg-blue-50 text-gray-500 hover:text-blue-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
-                            title="Edit brand"
-                          >
-                            <FaEdit size={14} />
-                          </button>
-                          {confirmDelete?.type === 'brand' && confirmDelete.id === brand._id ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleDeleteBrand(brand._id || '')}
-                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                onClick={() => setConfirmDelete(null)}
-                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmDelete({ type: 'brand', id: brand._id })}
-                              className="p-2 bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-600 border border-gray-200/50 rounded-xl hover:scale-105 transition"
-                              title="Delete brand"
-                            >
-                              <FaTrash size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {brands.length === 0 && (
-                      <div className="col-span-full py-16 text-center text-gray-450">No brands found.</div>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* Testimonials Tab */}
-            {activeTab === 'testimonials' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Testimonials List */}
-                  <div className="lg:col-span-2 bg-white/85 backdrop-blur-md border border-gray-100 rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300">
-                  <h2 className="text-xl font-bold flex items-center gap-2 mb-6 text-gray-900">
-                    <FaCommentAlt className="text-rose-500" /> Customer Testimonials
-                  </h2>
-                  <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
-                    {testimonials.map((test, index) => (
-                      <div key={test._id || index} className="p-5 bg-gray-50 border border-gray-200 rounded-2xl">
-                        <div className="flex items-center justify-between gap-3 mb-3">
-                          <div className="flex text-amber-500 gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              i < test.rating ? <FaStar key={i} size={14} /> : <FaRegStar key={i} size={14} />
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {filteredProducts.map((product) => (
+                              <tr key={product.id} className="group hover:bg-slate-50/50 transition duration-150">
+                                <td className="py-3">
+                                  <img
+                                    src={product.image}
+                                    alt={product.name}
+                                    className="w-11 h-11 rounded-lg object-cover border border-slate-200/65"
+                                  />
+                                </td>
+                                <td className="py-3 pl-4">
+                                  <div className="font-bold text-slate-850 text-sm group-hover:text-blue-600 transition duration-150">{product.name}</div>
+                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{product.category}</div>
+                                </td>
+                                <td className="py-3 text-right font-bold text-slate-900 text-sm">
+                                  <span className="text-slate-400 font-normal text-xs mr-0.5">$</span>{product.price.toLocaleString()}
+                                </td>
+                                <td className="py-3 text-right pr-4">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      onClick={() => handleEditProduct(product)}
+                                      className="p-2 bg-white hover:bg-blue-50 text-slate-500 hover:text-blue-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm hover:shadow"
+                                      title="Edit product"
+                                    >
+                                      <FaEdit size={12} />
+                                    </button>
+                                    {confirmDelete?.type === 'product' && confirmDelete.id === product.id ? (
+                                      <div className="flex gap-1 justify-end">
+                                        <button
+                                          onClick={() => handleDeleteProduct(product.id)}
+                                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                                        >
+                                          Confirm
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDelete(null)}
+                                          className="px-2.5 py-1 bg-slate-105 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => setConfirmDelete({ type: 'product', id: product.id })}
+                                        className="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm hover:shadow"
+                                        title="Delete product"
+                                      >
+                                        <FaTrash size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
                             ))}
-                          </div>
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${test.approved ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {test.approved ? 'Approved' : 'Pending'}
-                          </span>
-                        </div>
-                        <p className="text-gray-700 italic text-sm mb-3">"{test.text}"</p>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="text-xs text-gray-500 font-bold">- {test.name}</div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleTestimonialApproval(test)}
-                              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold transition"
-                            >
-                              {test.approved ? 'Unapprove' : 'Approve'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDelete({ type: 'testimonial', id: test._id })}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-semibold transition"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                        {confirmDelete?.type === 'testimonial' && confirmDelete.id === test._id && (
-                          <div className="mt-3 flex gap-2 justify-end">
-                            <button
-                              onClick={() => handleDeleteTestimonial(test._id || '')}
-                              className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition"
-                            >
-                              Confirm Delete
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {testimonials.length === 0 && (
-                      <div className="py-16 text-center text-gray-450">No testimonials found.</div>
-                    )}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
 
+                {/* Categories Tab */}
+                {activeTab === 'categories' && (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                    <h2 className="text-base font-bold flex items-center gap-2 mb-6 text-slate-800">
+                      <FaTags className="text-purple-500" /> Existing Categories ({categories.length})
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                      {categories.map((category) => (
+                        <div key={category.id} className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:shadow-sm rounded-xl flex flex-col items-center justify-between text-center gap-3 transition-all duration-200">
+                          <div className="flex flex-col items-center gap-2">
+                            <img
+                              src={category.icon}
+                              alt={category.name}
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-200/80 shadow-sm"
+                            />
+                            <div>
+                              <div className="font-bold text-slate-850 text-sm">{category.name}</div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">ID: {category.id}</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-1.5 w-full justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleEditCategory(category)}
+                              className="p-2 bg-white hover:bg-blue-50 text-slate-500 hover:text-blue-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm"
+                              title="Edit category"
+                            >
+                              <FaEdit size={11} />
+                            </button>
+                            {confirmDelete?.type === 'category' && confirmDelete.id === category._id ? (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleDeleteCategory(category._id || '')}
+                                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  OK
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDelete(null)}
+                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  X
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDelete({ type: 'category', id: category._id })}
+                                className="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm"
+                                title="Delete category"
+                              >
+                                <FaTrash size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {categories.length === 0 && (
+                        <div className="col-span-full py-16 text-center text-slate-400 text-sm">No folders or categories found.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Brands Tab */}
+                {activeTab === 'brands' && (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                    <h2 className="text-base font-bold flex items-center gap-2 mb-6 text-slate-800">
+                      <FaAward className="text-amber-500" /> Manufacturer Brands ({brands.length})
+                    </h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 max-h-[500px] overflow-y-auto pr-1 custom-scrollbar">
+                      {brands.map((brand, index) => (
+                        <div key={brand._id || index} className="p-4 bg-slate-50/50 hover:bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:shadow-sm rounded-xl flex flex-col items-center justify-between text-center gap-3 transition-all duration-200">
+                          <div className="flex flex-col items-center gap-2">
+                            <img
+                              src={brand.logo}
+                              alt={brand.name}
+                              className="w-12 h-12 rounded-xl object-cover border border-slate-200/80 shadow-sm"
+                            />
+                            <div className="font-bold text-slate-850 text-sm mt-1">{brand.name}</div>
+                          </div>
+                          <div className="flex gap-1.5 w-full justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleEditBrand(brand)}
+                              className="p-2 bg-white hover:bg-blue-50 text-slate-500 hover:text-blue-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm"
+                              title="Edit brand"
+                            >
+                              <FaEdit size={11} />
+                            </button>
+                            {confirmDelete?.type === 'brand' && confirmDelete.id === brand._id ? (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleDeleteBrand(brand._id || '')}
+                                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  OK
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDelete(null)}
+                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                >
+                                  X
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDelete({ type: 'brand', id: brand._id })}
+                                className="p-2 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 rounded-lg hover:scale-105 transition cursor-pointer shadow-sm"
+                                title="Delete brand"
+                              >
+                                <FaTrash size={11} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {brands.length === 0 && (
+                        <div className="col-span-full py-16 text-center text-slate-400 text-sm">No registered brands found.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Testimonials Tab */}
+                {activeTab === 'testimonials' && (
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                    <h2 className="text-base font-bold flex items-center gap-2 mb-6 text-slate-800">
+                      <FaCommentAlt className="text-rose-500" /> Customer Testimonials ({testimonials.length})
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[550px] overflow-y-auto pr-1 custom-scrollbar">
+                      {testimonials.map((test, index) => (
+                        <div key={test._id || index} className="p-5 bg-slate-50/50 border border-slate-200/80 hover:border-slate-300 rounded-xl flex flex-col justify-between hover:shadow-sm transition-all duration-200">
+                          <div>
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <div className="flex text-amber-400 gap-0.5">
+                                {[...Array(5)].map((_, i) => (
+                                  i < test.rating ? <FaStar key={i} size={12} /> : <FaRegStar key={i} size={12} />
+                                ))}
+                              </div>
+                              <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full border ${test.approved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                {test.approved ? 'Approved' : 'Pending'}
+                              </span>
+                            </div>
+                            <p className="text-slate-600 italic text-sm mb-4 leading-relaxed">"{test.text}"</p>
+                          </div>
+                          <div className="flex items-center justify-between gap-3 pt-3.5 border-t border-slate-100">
+                            <div className="text-xs text-slate-800 font-bold">{test.name}</div>
+                            <div className="flex gap-1.5 items-center">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleTestimonialApproval(test)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition cursor-pointer ${test.approved ? 'bg-white hover:bg-slate-50 text-slate-650 border-slate-200' : 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-sm shadow-blue-500/10'}`}
+                              >
+                                {test.approved ? 'Unapprove' : 'Approve'}
+                              </button>
+                              {confirmDelete?.type === 'testimonial' && confirmDelete.id === test._id ? (
+                                <div className="flex gap-1 items-center">
+                                  <button
+                                    onClick={() => handleDeleteTestimonial(test._id || '')}
+                                    className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                  >
+                                    Confirm
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDelete(null)}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDelete({ type: 'testimonial', id: test._id })}
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition cursor-pointer border border-rose-100"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {testimonials.length === 0 && (
+                        <div className="col-span-full py-16 text-center text-slate-400 text-sm">No client reviews found.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-        </div>
         </motion.div>
       </div>
 
+      {/* Modal overlays */}
       <AnimatePresence>
         {isModalOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-8"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm px-4 py-8"
             onClick={closeModal}
           >
             <motion.div
-              initial={{ y: 20, opacity: 0, scale: 0.98 }}
+              initial={{ y: 15, opacity: 0, scale: 0.98 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 16, opacity: 0, scale: 0.98 }}
+              exit={{ y: 12, opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl"
+              className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl overflow-y-auto max-h-full"
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="mb-6 flex items-start justify-between gap-4 pb-4 border-b border-slate-100">
                 <div>
-                  <h3 className="text-2xl font-bold text-[#0F172A]">
-                    {modalMode === 'edit' ? `Edit ${modalKind}` : `Create ${modalKind}`}
+                  <h3 className="text-xl font-bold text-slate-800">
+                    {modalMode === 'edit' ? `Edit ${modalKind.toUpperCase()}` : `Add New ${modalKind.toUpperCase()}`}
                   </h3>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {modalKind === 'product' && 'Update the product details quickly.'}
-                    {modalKind === 'category' && 'Add or refine a category for the storefront.'}
-                    {modalKind === 'brand' && 'Manage a brand card and logo.'}
-                    {modalKind === 'testimonial' && 'Add a testimonial for public approval.'}
+                  <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                    {modalKind === 'product' && 'Supply product specs, price tiers, categories and product files.'}
+                    {modalKind === 'category' && 'Configure custom groupings and upload category icon.'}
+                    {modalKind === 'brand' && 'Update manufacturer names and upload vector corporate logos.'}
+                    {modalKind === 'testimonial' && 'Submit an honest reviewer opinion directly to approval stack.'}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-full border border-gray-200 p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                  className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition cursor-pointer"
                 >
-                  <FaTimes />
+                  <FaTimes size={14} />
                 </button>
               </div>
 
               {modalKind === 'product' && (
                 <form onSubmit={handleSaveProduct} className="space-y-4">
-                  <TextInput label="Product Name" value={productForm.name} onChange={(value) => setProductForm({ ...productForm, name: value })} required placeholder="e.g. MacBook Pro M3" />
-                  <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Category</span>
-                    <select
-                      value={productForm.category}
-                      onChange={(event) => setProductForm({ ...productForm, category: event.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
-                      required
-                    >
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.name}>{category.name}</option>
-                      ))}
-                      {categories.length === 0 && <option value="">No categories created yet</option>}
-                    </select>
+                  <TextInput label="Product Name" value={productForm.name} onChange={(value) => setProductForm({ ...productForm, name: value })} required placeholder="e.g. MacBook Pro 16-inch M3 Max" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="mb-1.5 block text-xs font-semibold text-slate-700">Category Folder</span>
+                      <select
+                        value={productForm.category}
+                        onChange={(event) => setProductForm({ ...productForm, category: event.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition duration-150"
+                        required
+                      >
+                        {categories.map((category) => (
+                          <option key={category.id} value={category.name}>{category.name}</option>
+                        ))}
+                        {categories.length === 0 && <option value="">No categories created yet</option>}
+                      </select>
+                    </div>
+                    <div>
+                      <span className="mb-1.5 block text-xs font-semibold text-slate-700">Manufacturer Brand</span>
+                      <select
+                        value={productForm.brand}
+                        onChange={(event) => setProductForm({ ...productForm, brand: event.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition duration-150"
+                      >
+                        <option value="">No Brand Tag</option>
+                        {brands.map((brand) => (
+                          <option key={brand._id} value={brand.name}>{brand.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <TextInput label="Price ($)" type="number" value={productForm.price} onChange={(value) => setProductForm({ ...productForm, price: value })} required placeholder="e.g. 1999" min="0" step="0.01" />
+                    <div>
+                      <span className="mb-1.5 block text-xs font-semibold text-slate-700">Review Star Score</span>
+                      <select
+                        value={productForm.rating}
+                        onChange={(event) => setProductForm({ ...productForm, rating: event.target.value })}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition duration-150"
+                        required
+                      >
+                        <option value="5">5.0 / 5 stars</option>
+                        <option value="4.5">4.5 / 5 stars</option>
+                        <option value="4">4.0 / 5 stars</option>
+                        <option value="3">3.0 / 5 stars</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Brand</span>
-                    <select
-                      value={productForm.brand}
-                      onChange={(event) => setProductForm({ ...productForm, brand: event.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
-                    >
-                      <option value="">No Brand</option>
-                      {brands.map((brand) => (
-                        <option key={brand._id} value={brand.name}>{brand.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <TextInput label="Price ($)" type="number" value={productForm.price} onChange={(value) => setProductForm({ ...productForm, price: value })} required placeholder="e.g. 1299" min="0" step="0.01" />
-                  <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Product Image</span>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Product Representation Image</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -965,37 +969,23 @@ export default function Admin() {
                           setProductImagePreview(URL.createObjectURL(file));
                         }
                       }}
-                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-1.5 file:font-semibold file:text-blue-700 hover:file:bg-blue-100 transition file:cursor-pointer"
                     />
-                    {productImagePreview && <img src={productImagePreview} alt="Preview" className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover" />}
+                    {productImagePreview && <img src={productImagePreview} alt="Preview" className="mt-3 h-28 w-full rounded-xl border border-slate-200 object-cover shadow-sm" />}
                   </div>
-                  <TextArea label="Description" value={productForm.description} onChange={(value) => setProductForm({ ...productForm, description: value })} required placeholder="Describe the product" />
-                  <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Rating (1-5)</span>
-                    <select
-                      value={productForm.rating}
-                      onChange={(event) => setProductForm({ ...productForm, rating: event.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
-                      required
-                    >
-                      <option value="5">5 stars</option>
-                      <option value="4.5">4.5 stars</option>
-                      <option value="4">4 stars</option>
-                      <option value="3">3 stars</option>
-                    </select>
-                  </div>
-                  <div className="flex gap-3">
-                    <SubmitButton label={modalMode === 'edit' ? 'Update Product' : 'Save Product'} busy={saving === 'product'} />
-                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  <TextArea label="Description Specs" value={productForm.description} onChange={(value) => setProductForm({ ...productForm, description: value })} required placeholder="Input detailed specs, features, colors, and availability..." />
+                  <div className="flex gap-3 pt-2">
+                    <SubmitButton label={modalMode === 'edit' ? 'Apply Product Updates' : 'Add Item to Catalog'} busy={saving === 'product'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancel</button>
                   </div>
                 </form>
               )}
 
               {modalKind === 'category' && (
                 <form onSubmit={handleSaveCategory} className="space-y-4">
-                  <TextInput label="Category Name" value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} required placeholder="e.g. Smart Watches" />
+                  <TextInput label="Category Directory Name" value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} required placeholder="e.g. Wearables & Fitness" />
                   <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Category Icon</span>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Category Icon File</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1006,23 +996,23 @@ export default function Admin() {
                           setCategoryIconPreview(URL.createObjectURL(file));
                         }
                       }}
-                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-50 file:px-4 file:py-2 file:font-semibold file:text-purple-700 hover:file:bg-purple-100"
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-850 file:mr-4 file:rounded-lg file:border-0 file:bg-purple-50 file:px-4 file:py-1.5 file:font-semibold file:text-purple-700 hover:file:bg-purple-100 transition file:cursor-pointer"
                       required={!editingCategoryId}
                     />
-                    {categoryIconPreview && <img src={categoryIconPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-gray-200 object-cover" />}
+                    {categoryIconPreview && <img src={categoryIconPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-slate-200 object-cover shadow-sm" />}
                   </div>
-                  <div className="flex gap-3">
-                    <SubmitButton label={modalMode === 'edit' ? 'Update Category' : 'Save Category'} busy={saving === 'category'} />
-                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  <div className="flex gap-3 pt-2">
+                    <SubmitButton label={modalMode === 'edit' ? 'Save Category Updates' : 'Publish Category'} busy={saving === 'category'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancel</button>
                   </div>
                 </form>
               )}
 
               {modalKind === 'brand' && (
                 <form onSubmit={handleSaveBrand} className="space-y-4">
-                  <TextInput label="Brand Name" value={brandForm.name} onChange={(value) => setBrandForm({ ...brandForm, name: value })} required placeholder="e.g. Apple" />
+                  <TextInput label="Brand Name" value={brandForm.name} onChange={(value) => setBrandForm({ ...brandForm, name: value })} required placeholder="e.g. Samsung Electronics" />
                   <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Brand Logo</span>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Brand Corporate Emblem</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1033,38 +1023,38 @@ export default function Admin() {
                           setBrandLogoPreview(URL.createObjectURL(file));
                         }
                       }}
-                      className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-50 file:px-4 file:py-2 file:font-semibold file:text-amber-700 hover:file:bg-amber-100"
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-50 file:px-4 file:py-1.5 file:font-semibold file:text-amber-700 hover:file:bg-amber-100 transition file:cursor-pointer"
                       required={!editingBrandId}
                     />
-                    {brandLogoPreview && <img src={brandLogoPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-gray-200 object-cover" />}
+                    {brandLogoPreview && <img src={brandLogoPreview} alt="Preview" className="mt-3 h-24 w-full rounded-xl border border-slate-200 object-cover shadow-sm" />}
                   </div>
-                  <div className="flex gap-3">
-                    <SubmitButton label={modalMode === 'edit' ? 'Update Brand' : 'Save Brand'} busy={saving === 'brand'} />
-                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  <div className="flex gap-3 pt-2">
+                    <SubmitButton label={modalMode === 'edit' ? 'Save Brand Updates' : 'Publish Brand Profile'} busy={saving === 'brand'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancel</button>
                   </div>
                 </form>
               )}
 
               {modalKind === 'testimonial' && (
                 <form onSubmit={handleCreateTestimonial} className="space-y-4">
-                  <TextInput label="Customer Name" value={testimonialForm.name} onChange={(value) => setTestimonialForm({ ...testimonialForm, name: value })} required placeholder="e.g. John Doe" />
-                  <TextArea label="Feedback Text" value={testimonialForm.text} onChange={(value) => setTestimonialForm({ ...testimonialForm, text: value })} required placeholder="Share the customer feedback" />
+                  <TextInput label="Customer Reviewer Name" value={testimonialForm.name} onChange={(value) => setTestimonialForm({ ...testimonialForm, name: value })} required placeholder="e.g. Sarah Jenkins" />
+                  <TextArea label="Opinion Feedback Content" value={testimonialForm.text} onChange={(value) => setTestimonialForm({ ...testimonialForm, text: value })} required placeholder="State details shared by the customer regarding their storefront experience..." />
                   <div>
-                    <span className="mb-1.5 block text-sm font-semibold text-gray-700">Rating</span>
+                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">Rating Score</span>
                     <select
                       value={testimonialForm.rating}
                       onChange={(event) => setTestimonialForm({ ...testimonialForm, rating: event.target.value })}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-gray-800 focus:border-[#2563EB] focus:bg-white focus:outline-none"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-800 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition duration-150"
                       required
                     >
-                      <option value="5">5 stars</option>
-                      <option value="4">4 stars</option>
-                      <option value="3">3 stars</option>
+                      <option value="5">5.0 / 5 stars</option>
+                      <option value="4">4.0 / 5 stars</option>
+                      <option value="3">3.0 / 5 stars</option>
                     </select>
                   </div>
-                  <div className="flex gap-3">
-                    <SubmitButton label="Save Testimonial" busy={saving === 'testimonial'} />
-                    <button type="button" onClick={closeModal} className="rounded-xl border border-gray-200 px-4 py-3 font-semibold text-gray-700 transition hover:bg-gray-100">Cancel</button>
+                  <div className="flex gap-3 pt-2">
+                    <SubmitButton label="Publish Testimonial Item" busy={saving === 'testimonial'} />
+                    <button type="button" onClick={closeModal} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 cursor-pointer">Cancel</button>
                   </div>
                 </form>
               )}
@@ -1079,36 +1069,18 @@ export default function Admin() {
 function SummaryCard({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
   return (
     <motion.div
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.2 }}
-      className="bg-blue-50 border border-blue-100 hover:border-[#2563EB]/40 rounded-2xl p-5 flex items-center justify-between shadow-md hover:shadow-lg transition-all duration-300"
+      whileHover={{ y: -3 }}
+      transition={{ duration: 0.15 }}
+      className="bg-white border border-slate-200/80 rounded-xl p-4.5 flex items-center justify-between shadow-sm hover:border-slate-350 transition-all duration-300"
     >
       <div>
-        <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{label}</p>
-        <p className="text-3xl font-extrabold text-gray-900 mt-1">{value}</p>
+        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{label}</p>
+        <p className="text-2xl font-bold text-slate-800 tracking-tight mt-1">{value}</p>
       </div>
-      <div className="w-12 h-12 rounded-xl bg-white border border-blue-50 flex items-center justify-center text-xl shadow-sm">
+      <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-sm shadow-sm">
         {icon}
       </div>
     </motion.div>
-  );
-}
-
-function TabButton({ active, onClick, label, icon }: { active: boolean; onClick: () => void; label: string; icon: React.ReactNode }) {
-  return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 cursor-pointer ${
-        active
-          ? 'bg-[#2563EB] text-white shadow-lg shadow-blue-500/20'
-          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 hover:text-[#2563EB]'
-      }`}
-    >
-      {icon}
-      <span>{label}</span>
-    </motion.button>
   );
 }
 
@@ -1135,7 +1107,7 @@ function TextInput({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-semibold text-gray-750 mb-1.5">{label}</span>
+      <span className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</span>
       <input
         type={type}
         value={value}
@@ -1145,7 +1117,7 @@ function TextInput({
         min={min}
         max={max}
         step={step}
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-900 text-sm placeholder:text-gray-400"
+        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all text-slate-800 text-sm placeholder:text-gray-400 font-medium"
       />
     </label>
   );
@@ -1166,14 +1138,14 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm font-semibold text-gray-755 mb-1.5">{label}</span>
+      <span className="block text-xs font-semibold text-slate-700 mb-1.5">{label}</span>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required={required}
         placeholder={placeholder}
         rows={4}
-        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-[#2563EB] focus:ring-2 focus:ring-blue-100 outline-none transition-all text-gray-900 text-sm placeholder:text-gray-400 resize-none"
+        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all text-slate-800 text-sm placeholder:text-gray-400 resize-none font-sans font-medium"
       />
     </label>
   );
@@ -1182,14 +1154,14 @@ function TextArea({
 function SubmitButton({ label, busy }: { label: string; busy: boolean }) {
   return (
     <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
       type="submit"
       disabled={busy}
-      className="w-full py-3.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="grow py-3 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {busy && <FaSpinner className="animate-spin" />}
-      {busy ? 'Saving...' : label}
+      {busy ? 'Saving changes...' : label}
     </motion.button>
   );
 }

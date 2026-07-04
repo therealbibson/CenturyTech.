@@ -58,9 +58,9 @@ export interface OrderInput {
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
 
-export type ProductInput = Omit<Product, '_id' | 'id'> & { brand?: string; image?: string | File };
-export type CategoryInput = Omit<Category, '_id' | 'id'> & { id?: number; icon?: string | File };
-export type BrandInput = Omit<Brand, '_id'> & { logo?: string | File };
+export type ProductInput = Omit<Product, '_id' | 'id' | 'image'> & { brand?: string; image?: string | File };
+export type CategoryInput = Omit<Category, '_id' | 'id' | 'icon'> & { id?: number; icon?: string | File };
+export type BrandInput = Omit<Brand, '_id' | 'logo'> & { logo?: string | File };
 export type TestimonialInput = Omit<Testimonial, '_id'>;
 
 async function parseError(response: Response, fallback: string) {
@@ -145,7 +145,7 @@ export const api = {
     if (productData.brand) {
       formData.append('brand', productData.brand);
     }
-    if (productData.image instanceof File) {
+    if (productData.image && typeof productData.image !== 'string') {
       formData.append('image', productData.image);
     } else if (productData.image) {
       formData.append('image', productData.image);
@@ -171,7 +171,7 @@ export const api = {
   async createCategory(categoryData: CategoryInput): Promise<Category> {
     const formData = new FormData();
     formData.append('name', categoryData.name);
-    if (categoryData.icon instanceof File) {
+    if (categoryData.icon && typeof categoryData.icon !== 'string') {
       formData.append('icon', categoryData.icon);
     } else if (categoryData.icon) {
       formData.append('icon', categoryData.icon);
@@ -202,7 +202,7 @@ export const api = {
     if (categoryData.name != null) {
       formData.append('name', categoryData.name);
     }
-    if (categoryData.icon instanceof File) {
+    if (categoryData.icon && typeof categoryData.icon !== 'string') {
       formData.append('icon', categoryData.icon);
     } else if (categoryData.icon) {
       formData.append('icon', categoryData.icon);
@@ -242,7 +242,7 @@ export const api = {
   async createBrand(brandData: BrandInput): Promise<Brand> {
     const formData = new FormData();
     formData.append('name', brandData.name);
-    if (brandData.logo instanceof File) {
+    if (brandData.logo && typeof brandData.logo !== 'string') {
       formData.append('logo', brandData.logo);
     } else if (brandData.logo) {
       formData.append('logo', brandData.logo);
@@ -270,7 +270,7 @@ export const api = {
     if (brandData.name != null) {
       formData.append('name', brandData.name);
     }
-    if (brandData.logo instanceof File) {
+    if (brandData.logo && typeof brandData.logo !== 'string') {
       formData.append('logo', brandData.logo);
     } else if (brandData.logo) {
       formData.append('logo', brandData.logo);
@@ -433,7 +433,7 @@ export const api = {
     if (productData.price != null) formData.append('price', String(productData.price));
     if (productData.description != null) formData.append('description', productData.description);
     if (productData.rating != null) formData.append('rating', String(productData.rating));
-    if (productData.image instanceof File) {
+    if (productData.image && typeof productData.image !== 'string') {
       formData.append('image', productData.image);
     } else if (productData.image != null) {
       formData.append('image', productData.image);
